@@ -1,0 +1,13 @@
+transformer_lens
+sae_lens
+nnsight
+transformers
+datasets
+accelerate
+scikit-learn
+scipy
+numpy
+pandas
+matplotlib
+seaborn
+pyyaml

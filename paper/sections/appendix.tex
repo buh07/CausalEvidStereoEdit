@@ -1,0 +1,579 @@
+\section{Appendix}
+This appendix is organized to make the evidence trail easy to follow from protocol to interpretation. The first section records protocol and reproducibility metadata. The middle sections report full result tables that are too large for the main text (core result supplements, external-validity extension, and transfer details). The final sections collect diagnostic constraints and the claim-summary map used for interpretation boundaries.
+
+\subsection{Reproducibility and Protocol Records}
+\noindent\textbf{How to use this section.} Read Tables~\ref{tab:prereg-map}--\ref{tab:counts} as the execution ledger for the paper: what was pre-registered, how each claim family is operationalized, and the exact source/axis split counts behind the core model analyses.
+\paragraph{Pre-registration map.}
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{|p{0.31\columnwidth}|p{0.60\columnwidth}|}
+\hline
+\textbf{Planned claim family} & \textbf{What is reported here (and deviation status)} \\
+\hline
+Direction formulation and intervention operator & Originally planned as on-manifold replacement. Reported here with completion-format causal-local intervention at prediction position after identifying trait-position vacuity; treated as a methodological correction. \\
+\hline
+Specificity controls & Strict controls are reported. Label-permutation control is flagged as confounded in this setup and excluded from specificity verdicts. \\
+\hline
+Multi-site robustness expectation & Multi-site intervention stress tests are reported; evidence is heterogeneous and non-identifying for a single mechanism. \\
+\hline
+Cross-source transfer expectation & Reported with a cross-\emph{dataset} 2$\times$2 transfer matrix as the deployment-facing transfer stress test. \\
+\hline
+Extension analyses outside the preregistered core & Attribution-sign reliability analysis, suppressor contamination analysis, injection specificity controls, SEEGeL source-exclusion feasibility disclosure, and the four-model extension are reported as non-preregistered analyses. \\
+\hline
+Timeline integrity & The preregistration freeze preceded the corrected reruns reported here; trait-position vacuity was identified before those reruns and treated as a methodological correction rather than an outcome-driven selection step. \\
+\hline
+\end{tabular}
+\caption{Pre-registration operationalization with exact claim text and explicit deviations.}
+\label{tab:prereg-map}
+\end{table}
+
+\paragraph{Experiment glossary.}
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{|p{0.23\columnwidth}|p{0.70\columnwidth}|}
+\hline
+\textbf{Analysis topic} & \textbf{What it measures} \\
+\hline
+Direction extraction and detectability & How strongly stereotype/anti pairs separate in hidden-state space before intervention. \\
+\hline
+Attribution-based component ranking (DLA/AtP) & Which components are ranked as likely contributors to stereotype preference. \\
+\hline
+Primary causal intervention analysis & Behavioral and margin effects of ablation vs injection at prediction position. \\
+\hline
+Cross-cultural cosine diagnostic & Similarity of extracted directions across cultural subsets. \\
+\hline
+Rank sensitivity diagnostic & How effect size changes as lower-ranked components are added. \\
+\hline
+Dose-response diagnostic & Whether increasing injection scale produces monotone score/margin movement. \\
+\hline
+Single-component causal checks & Per-component causal deltas used to validate sign and contamination diagnostics. \\
+\hline
+Layer/pathway mediation diagnostic & Relative leverage of residual-stream, attention-only, and MLP-only projections. \\
+\hline
+Multi-site intervention stress test & Whether ablating multiple ranked sites improves or destabilizes outcomes. \\
+\hline
+Attribution-sign reliability analysis & Agreement between attribution sign and observed causal direction. \\
+\hline
+Cross-source transfer matrix & Within-source vs cross-source carryover under shared-axis conditions. \\
+\hline
+Direct inject-minus-remove contrast & Paired asymmetry estimate under matched intervention operators. \\
+\hline
+Suppressor contamination analysis & Fraction of ranked sites that push in the opposite causal direction. \\
+\hline
+Injection-specificity controls & Whether true-direction injection exceeds matched random/shuffled controls. \\
+\hline
+SEEGeL source-exclusion feasibility check & Pipeline behavior when SEEGeL is excluded from training and evaluated on SEEGeL pairs. \\
+\hline
+\end{tabular}
+\caption{Experiment glossary for main-text shorthand.}
+\label{tab:experiment-glossary}
+\end{table}
+
+\paragraph{Exact split counts.}
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.16\textwidth}p{0.16\textwidth}p{0.17\textwidth}p{0.17\textwidth}p{0.17\textwidth}@{}}
+\toprule
+Source & Axis & Gemma (train/test) & Gemma-IT (train/test) & Llama (train/test) \\
+\midrule
+CrowS & age & 44/9 & 44/9 & 43/9 \\
+CrowS & disability & 17/6 & 17/6 & 16/5 \\
+CrowS & gender & 19/4 & 19/4 & 20/4 \\
+CrowS & nationality & 28/9 & 28/9 & 35/9 \\
+CrowS & physical appearance & 33/10 & 33/10 & 34/9 \\
+CrowS & race & 22/5 & 22/5 & 27/3 \\
+CrowS & religion & 34/4 & 34/4 & 31/4 \\
+CrowS & sexual orientation & 49/11 & 49/11 & 51/9 \\
+CrowS & socioeconomic & 45/19 & 45/19 & 42/18 \\
+SEEGeL & nationality & 22/4 & 22/4 & 15/4 \\
+StereoSet & gender & 32/11 & 32/11 & 36/13 \\
+StereoSet & profession & 52/20 & 52/20 & 59/20 \\
+StereoSet & race & 59/6 & 59/6 & 48/10 \\
+StereoSet & religion & 24/2 & 24/2 & 23/3 \\
+\midrule
+Total aligned/tested & all axes & 480/120 & 480/120 & 480/120 \\
+\bottomrule
+\end{tabular}
+\caption{Exact source-axis train/test counts from direction-extraction splits used by the primary evaluations.}
+\label{tab:counts}
+\end{table}
+
+\section{Additional Results for Core Claims}
+This section expands the core causal story with full tables that complement the compact main-text presentation. The sequence is: direct inject/remove matrix details, margin outcomes, specificity controls, model-level sign reliability, and then multi-site heterogeneity/sweep summaries.
+\subsection{Main-test and matched-operator supplements}
+\noindent\textbf{Reading guide.} Tables~\ref{tab:matched-matrix}--\ref{tab:injection-controls} should be interpreted together: matrix rows establish operation-specific effects, margin rows test mechanistic movement, and control rows test whether injection effects are direction-specific rather than generic perturbations.
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}l p{0.19\textwidth} p{0.16\textwidth} p{0.19\textwidth} p{0.16\textwidth} c@{}}
+\toprule
+& \multicolumn{2}{c}{Pred-position ablation} & \multicolumn{2}{c}{Injection-on-anti} & Post-injection \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Model & Baseline $\rightarrow$ Post & $\Delta$score [95\% CI], $q$ & Baseline $\rightarrow$ Post & $\Delta$score [95\% CI], $q$ & score above chance \\
+\midrule
+Gemma-2-2B & 0.533 [0.442, 0.617] $\rightarrow$ 0.508 [0.433, 0.592] & $-$0.025 [$-$0.083, 0.025], 0.549 & 0.533 [0.442, 0.617] $\rightarrow$ 0.625 [0.529, 0.708] & +0.092 [0.042, 0.158], 0.0205 & +0.125 \\
+Gemma-2-2B-IT & 0.483 [0.400, 0.567] $\rightarrow$ 0.500 [0.408, 0.592] & +0.017 [$-$0.025, 0.067], 1.000 & 0.483 [0.400, 0.567] $\rightarrow$ 0.575 [0.492, 0.658] & +0.092 [0.042, 0.150], 0.0059 & +0.075 \\
+Llama-3.2-3B & 0.417 [0.317, 0.508] $\rightarrow$ 0.400 [0.317, 0.479] & $-$0.017 [$-$0.063, 0.033], 0.727 & 0.417 [0.317, 0.508] $\rightarrow$ 0.708 [0.633, 0.792] & +0.292 [0.192, 0.408], 0.000004 & +0.208 \\
+\bottomrule
+\end{tabular}
+\caption{Full main intervention score table with baseline$\rightarrow$post rows.}
+\label{tab:main-intervention-score-full}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+Model & Remove-on-anti $\Delta$score [95\% CI] & Inject-on-anti $\Delta$score [95\% CI] \\
+\midrule
+Gemma-2-2B & -0.025 [-0.083, 0.033] & +0.075 [0.025, 0.125] \\
+Gemma-2-2B-IT & +0.017 [-0.025, 0.059] & +0.067 [0.025, 0.117] \\
+Llama-3.2-3B & -0.017 [-0.058, 0.025] & +0.233 [0.133, 0.333] \\
+\bottomrule
+\end{tabular}
+\caption{Direct inject/remove contrast matrix (anti-base rows shown). Removal remains weak; injection remains positive.}
+\label{tab:matched-matrix}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{build/fig_asymmetry_core_detail.png}
+\caption{Core-model asymmetry detail. Points show ablation deltas, injection deltas, and the direct inject-minus-remove contrast with 95\% CIs.}
+\label{fig:asymmetry-core-detail}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+Model & Pred-pos Ablation $\Delta$margin [95\% CI], $q$ & Injection-on-anti $\Delta$margin [95\% CI], $q$ \\
+\midrule
+Gemma-2-2B & $-$0.570 [$-$1.069, $-$0.166], 0.0134 & +0.928 [0.704, 1.147], 0.0000 \\
+Gemma-2-2B-IT & $-$0.218 [$-$0.502, 0.013], 0.4092 & +0.662 [0.504, 0.810], 0.0000 \\
+Llama-3.2-3B & $-$0.157 [$-$0.307, $-$0.045], 0.5324 & +3.267 [2.384, 4.017], 0.0000 \\
+\bottomrule
+\end{tabular}
+\caption{Primary intervention margin outcomes (paired Wilcoxon with BH-FDR). Margin changes are statistically tested in parallel to score; inferential decisions in this paper use the reported $q$-values, while bootstrap CIs are descriptive summaries.}
+\label{tab:main-intervention-score-margin}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+Model & True $-$ Random $\Delta$score [95\% CI], $q$ & True $-$ Shuffled $\Delta$score [95\% CI], $q$ \\
+\midrule
+Gemma-2-2B & +0.078 [0.026, 0.138], 0.0234 & +0.034 [$-0.0002$, 0.078], 0.219 \\
+Gemma-2-2B-IT & +0.052 [0.017, 0.095], 0.0313 & +0.060 [0.026, 0.112], 0.0313 \\
+Llama-3.2-3B & +0.259 [0.155, 0.379], 0.000030 & +0.172 [0.069, 0.276], 0.00366 \\
+\bottomrule
+\end{tabular}
+\caption{Injection-specificity control contrasts using prediction-position-only injection.}
+\label{tab:injection-controls}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+Model & DLA Sign Agreement (95\% Wilson CI), $k/N$, $q$ & AtP Sign Agreement (95\% Wilson CI), $k/N$, $q$ \\
+\midrule
+Gemma-2-2B & 41.4\% [31.2, 52.5], 29/70, 0.282 & 42.9\% [28.0, 59.1], 15/35, 1.000 \\
+Gemma-2-2B-IT & 28.3\% [18.0, 41.3], 13/46, 0.0136 & 44.4\% [27.6, 62.7], 12/27, 1.000 \\
+Llama-3.2-3B & 46.6\% [34.7, 58.8], 27/58, 0.694 & 50.0\% [36.9, 63.1], 26/52, 1.000 \\
+\bottomrule
+\end{tabular}
+\caption{Model-level attribution-sign agreement vs chance (50\%). $N$ is the count of audited components with valid signed ranking and causal-delta labels; $k$ is the count with sign agreement.}
+\label{tab:sign-audit-model}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{build/fig_margin_shift_models.png}
+\caption{Prediction-position ablation margin deltas by model with 95\% CIs. The dashed vertical line marks zero shift; point color marks significance ($q<0.05$ vs $q\ge0.05$).}
+\label{fig:margin-shift-models}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{build/fig_gemmait_sign_forest.png}
+\caption{Gemma-2-2B-IT per-axis sign-agreement rates with Wilson intervals. Dashed line marks chance (50\%).}
+\label{fig:sign-forest}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lcccc}
+\toprule
+Model / Axis & Sites & $n_{\text{pairs}}$ & $\Delta$score [95\% CI], $q$ & $\Delta$margin \\
+\midrule
+Llama profession & 8 & 20 & +0.150 [0.000, 0.300], 1.000 & +0.130 \\
+Llama nationality$^\dagger$ & 8 & 9 & +0.000 [-0.333, 0.222], 1.000 & -0.406 \\
+Gemma gender & 8 & 15 & +0.000 [0.000, 0.000], n/a & -0.942 \\
+Gemma gender & 20 & 15 & +0.000 [-0.267, 0.267], 1.000 & -0.469 \\
+Gemma profession & 8 & 20 & +0.000 [0.000, 0.000], n/a & -0.288 \\
+Gemma profession & 20 & 20 & +0.000 [-0.200, 0.200], 1.000 & -0.569 \\
+Gemma-IT gender & 8 & 15 & +0.000 [0.000, 0.000], n/a & +0.111 \\
+Gemma-IT gender & 20 & 15 & -0.067 [-0.200, 0.000], 1.000 & -0.286 \\
+Gemma-IT profession & 8 & 20 & +0.000 [0.000, 0.000], n/a & +0.145 \\
+Gemma-IT profession & 20 & 20 & +0.100 [-0.100, 0.300], 1.000 & +0.045 \\
+\bottomrule
+\end{tabular}
+\caption{Multi-site intervention heterogeneity snapshot. Selection rule: rows highlighted in the main narrative (Llama AtP-prioritized promoters, Gemma/Gemma-IT promoter-focused gender/profession sweeps, plus one Llama positive-point-estimate case). Full per-axis sweep summary is in Appendix Table~\ref{tab:multisite-full}. $^\dagger$Low-power row ($n<10$), shown for transparency but excluded from synthesis claims. \textit{n/a} in the $q$ column indicates zero-variance delta (score was 0.000 for all pairs in that row; test statistic undefined).}
+\label{tab:multisite-heterogeneity}
+\end{table}
+
+\subsection{Full multi-site sweep details}
+\noindent\textbf{Reading guide.} Table~\ref{tab:multisite-full} reports, for each axis, the site count that produced the largest absolute score change in the tested grid. It is intended to show heterogeneity and instability across site counts, not to identify a single universal optimal intervention size.
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lllccc}
+\toprule
+Model & Axis & $n_{\text{pairs}}$ & $n_{\text{sites}}$ at max $|\Delta|$ & Max $|\Delta$score$|$ & $\Delta$margin at that $n_{\text{sites}}$ \\
+\midrule
+Gemma-2-2B & gender & 15 & 12 & 0.067 & -0.517 \\
+Gemma-2-2B & profession & 20 & 12 & 0.100 & +0.291 \\
+\midrule
+Gemma-2-2B-IT & gender & 15 & 12 & 0.067 & -0.014 \\
+Gemma-2-2B-IT & profession & 20 & 16 & 0.100 & -0.055 \\
+\midrule
+Llama-3.2-3B & age$^\dagger$ & 9 & 1 & 0.000 & -0.167 \\
+Llama-3.2-3B & disability$^\dagger$ & 5 & 8 & 0.200 & -0.781 \\
+Llama-3.2-3B & gender & 17 & 8 & 0.059 & +0.249 \\
+Llama-3.2-3B & nationality$^\dagger$ & 9 & 4 & 0.222 & -0.285 \\
+Llama-3.2-3B & physical\_appearance$^\dagger$ & 9 & 1 & 0.111 & -0.128 \\
+Llama-3.2-3B & profession & 20 & 8 & 0.150 & +0.130 \\
+Llama-3.2-3B & race & 13 & 1 & 0.077 & +0.294 \\
+Llama-3.2-3B & religion$^\dagger$ & 7 & 1 & 0.143 & -1.071 \\
+Llama-3.2-3B & sexual\_orientation$^\dagger$ & 9 & 1 & 0.222 & -1.567 \\
+Llama-3.2-3B & socioeconomic & 18 & 8 & 0.111 & -0.569 \\
+\bottomrule
+\end{tabular}
+\caption{Full multi-site robustness stress test sweep summary: for each axis, we report the largest absolute score shift over the tested $n_{\text{sites}}$ grid. $^\dagger$Rows with $n<10$ are exploratory only.}
+\label{tab:multisite-full}
+\end{table}
+
+\section{Transfer and External-Validity Details}
+\noindent\textbf{How to use this section.} This section separates two questions: (i) whether the same intervention pattern appears in additional model families, and (ii) whether direction/ranking effects transfer across benchmark sources. The first is addressed by extension tables; the second by the 2$\times$2 transfer matrix and per-axis transfer rows.
+\subsection{Four-model external-validity extension}
+\noindent\textbf{Reading guide.} Table~\ref{tab:ext4-summary} gives the headline extension outcomes (ablation, injection, direct contrast). Table~\ref{tab:ext4-diagnostics} adds specificity and suppressor-contamination diagnostics for the same models.
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.17\textwidth}p{0.18\textwidth}p{0.18\textwidth}p{0.18\textwidth}p{0.18\textwidth}@{}}
+\toprule
+Model & Primary ablation\\$\Delta$score ($q$) & Primary injection\\$\Delta$score ($q$) & Direct contrast\\$\Delta$score ($q$) & Direct contrast\\$\Delta$margin ($q$) \\
+\midrule
+Qwen-3B & $-$0.025 (1.000) & +0.1625 (0.0878) & +0.1375 (0.00342) & +0.9572 (0.00499) \\
+Qwen-3B-Instruct & $-$0.0125 (1.000) & +0.2625 (0.00115) & +0.1625 (0.00443) & +1.5088 (0.000524) \\
+Mistral-7B & +0.0455 (0.832) & +0.1818 (0.461) & +0.0909 (0.388) & +1.8213 (0.00425) \\
+OLMo-2-7B & $-$0.0455 (1.000) & +0.3409 (0.000305) & +0.2273 (0.0213) & +1.6676 (0.000744) \\
+\bottomrule
+\end{tabular}
+\caption{Four-model external-validity extension: primary intervention and direct asymmetry outcomes.}
+\label{tab:ext4-summary}
+\end{table}
+\noindent\textbf{Key takeaway.} In the extension set, direct score asymmetry is significant in three of four added models, while direct margin asymmetry is significant in all four.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.19\textwidth}p{0.22\textwidth}p{0.22\textwidth}p{0.21\textwidth}@{}}
+\toprule
+Model & True-random\\$\Delta$score ($q$) & True-shuffled\\$\Delta$score ($q$) & Suppressor\\fraction \\
+\midrule
+Qwen-3B & +0.1000 (0.0771) & +0.0875 (0.143) & 0.1375 \\
+Qwen-3B-Instruct & +0.1250 (0.0309) & +0.1250 (0.0309) & 0.2000 \\
+Mistral-7B & +0.3636 (0.000805) & +0.2273 (0.0525) & 0.0375 \\
+OLMo-2-7B & +0.2045 (0.0574) & +0.1818 (0.0574) & 0.1375 \\
+\bottomrule
+\end{tabular}
+\caption{Four-model extension diagnostics: injection-specificity contrasts and suppressor contamination.}
+\label{tab:ext4-diagnostics}
+\end{table}
+\noindent\textbf{Key takeaway.} Extension diagnostics preserve the same qualitative pattern as the core set: injection specificity is present but uneven by control type, and suppressor contamination is non-zero in ranked multi-site sets.
+
+\subsection{Cross-source transfer matrix details}
+\noindent\textbf{Reading guide.} In Table~\ref{tab:transfer-matrix}, compare cross-source rows against within-source rows inside the same model block. Within-source rows are baseline checks for the same ranking family under matched source conditions; cross-source rows test whether effects carry across source constructions.
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.15\textwidth}p{0.11\textwidth}p{0.20\textwidth}p{0.09\textwidth}p{0.39\textwidth}@{}}
+\toprule
+Model & Type & Condition & $n_{\text{pairs}}$ & $\Delta$score [95\% CI], $q$ \\
+\midrule
+\multirow{4}{*}{Gemma-2-2B} & Within & StereoSet$\rightarrow$StereoSet & 39 & +0.051 [-0.128, 0.256], 1.000 \\
+& Cross & StereoSet$\rightarrow$CrowS & 13 & +0.077 [-0.154, 0.308], 1.000 \\
+& Within & CrowS$\rightarrow$CrowS & 77 & -0.143 [-0.247, -0.039], 0.0768 \\
+& Cross & CrowS$\rightarrow$StereoSet & 19 & +0.000 [-0.211, 0.211], 1.000 \\
+\midrule
+\multirow{4}{*}{Gemma-2-2B-IT} & Within & StereoSet$\rightarrow$StereoSet & 39 & +0.077 [-0.077, 0.231], 0.625 \\
+& Cross & StereoSet$\rightarrow$CrowS & 13 & +0.385 [0.154, 0.692], 0.250 \\
+& Within & CrowS$\rightarrow$CrowS & 77 & -0.039 [-0.130, 0.052], 0.625 \\
+& Cross & CrowS$\rightarrow$StereoSet & 19 & +0.105 [-0.053, 0.316], 0.625 \\
+\midrule
+\multirow{4}{*}{Llama-3.2-3B} & Within & StereoSet$\rightarrow$StereoSet & 46 & +0.022 [-0.109, 0.152], 1.000 \\
+& Cross & StereoSet$\rightarrow$CrowS & 11 & +0.091 [-0.182, 0.364], 1.000 \\
+& Within & CrowS$\rightarrow$CrowS & 70 & +0.086 [-0.071, 0.243], 1.000 \\
+& Cross & CrowS$\rightarrow$StereoSet & 26 & +0.000 [-0.231, 0.192], 1.000 \\
+\bottomrule
+\end{tabular}
+\caption{Condition-level 2$\times$2 transfer matrix. All rows are score-based paired tests with bootstrap CIs and BH-FDR across the four conditions within each model. Within-source rows use source-available axes under the same rank source and therefore are not directly comparable to pooled-all-axis model-level rows in the primary intervention analysis.}
+\label{tab:transfer-matrix}
+\end{table}
+\noindent\textbf{Key takeaway.} No condition-level cross-source row reaches the paper's FDR threshold; the closest within-source trend is Gemma CrowS$\rightarrow$CrowS.
+
+\subsection{Per-axis cross-source transfer rows}
+\noindent\textbf{Reading guide.} Table~\ref{tab:transfer-axis} is intentionally granular and low-power in several rows. Use it to inspect direction/sign heterogeneity by axis, not as a standalone significance source for deployment conclusions.
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lllccc}
+\toprule
+Model & Condition & Axis & $n_{\text{pairs}}$ & $\Delta$score [95\% CI] & $q_{\text{score}}$ \\
+\midrule
+Gemma-2-2B & StereoSet$\rightarrow$CrowS & gender & 4 & 0.000 [-0.750, 0.750] & 1.000 \\
+Gemma-2-2B & StereoSet$\rightarrow$CrowS & race & 5 & 0.200 [-0.400, 0.800] & 1.000 \\
+Gemma-2-2B & StereoSet$\rightarrow$CrowS & religion & 4 & 0.000 [0.000, 0.000] & n/a \\
+Gemma-2-2B & CrowS$\rightarrow$StereoSet & gender & 11 & 0.000 [-0.273, 0.273] & 1.000 \\
+Gemma-2-2B & CrowS$\rightarrow$StereoSet & race & 6 & 0.000 [-0.500, 0.500] & 1.000 \\
+Gemma-2-2B & CrowS$\rightarrow$StereoSet & religion & 2 & 0.000 [0.000, 0.000] & n/a \\
+\midrule
+Gemma-2-2B-IT & StereoSet$\rightarrow$CrowS & gender & 4 & 0.000 [0.000, 0.000] & n/a \\
+Gemma-2-2B-IT & StereoSet$\rightarrow$CrowS & race & 5 & 0.600 [0.200, 1.000] & 1.000 \\
+Gemma-2-2B-IT & StereoSet$\rightarrow$CrowS & religion & 4 & 0.500 [0.000, 1.000] & 1.000 \\
+Gemma-2-2B-IT & CrowS$\rightarrow$StereoSet & gender & 11 & 0.000 [-0.273, 0.273] & 1.000 \\
+Gemma-2-2B-IT & CrowS$\rightarrow$StereoSet & race & 6 & 0.167 [0.000, 0.500] & 1.000 \\
+Gemma-2-2B-IT & CrowS$\rightarrow$StereoSet & religion & 2 & 0.500 [0.000, 1.000] & 1.000 \\
+\midrule
+Llama-3.2-3B & StereoSet$\rightarrow$CrowS & gender & 4 & 0.000 [-0.750, 0.750] & 1.000 \\
+Llama-3.2-3B & StereoSet$\rightarrow$CrowS & race & 3 & 0.000 [0.000, 0.000] & n/a \\
+Llama-3.2-3B & StereoSet$\rightarrow$CrowS & religion & 4 & 0.250 [0.000, 0.750] & 1.000 \\
+Llama-3.2-3B & CrowS$\rightarrow$StereoSet & gender & 13 & 0.154 [-0.154, 0.462] & 1.000 \\
+Llama-3.2-3B & CrowS$\rightarrow$StereoSet & race & 10 & -0.200 [-0.600, 0.200] & 1.000 \\
+Llama-3.2-3B & CrowS$\rightarrow$StereoSet & religion & 3 & 0.000 [0.000, 0.000] & n/a \\
+\bottomrule
+\end{tabular}
+\caption{Per-axis cross-source score effects (shared axes only). No cross-source score row survives FDR ($q<0.1$); many cross-source rows are low-power ($n<10$).}
+\label{tab:transfer-axis}
+\end{table}
+\noindent\textbf{Key takeaway.} Axis-level rows are heterogeneous and mostly low-$n$; they are informative for directionality and instability patterns, not for strong standalone inferential claims.
+
+\subsection{SEEGeL leave-one-source-out feasibility disclosure}
+\noindent\textbf{Reading guide.} Table~\ref{tab:seegull-loso} is a feasibility disclosure only. It documents pipeline behavior under source-exclusion at current sample size and should not be interpreted as adjudicating cross-cultural circularity.
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.16\textwidth}p{0.10\textwidth}p{0.18\textwidth}p{0.22\textwidth}p{0.24\textwidth}@{}}
+\toprule
+Model & SEEGeL\\test $n$ & Full-train\\$\Delta$score / $\Delta$margin & Exclude-SEEGeL-train\\$\Delta$score / $\Delta$margin & Full-minus-exclude\\score contrast \\
+\midrule
+Gemma-2-2B & 4 & 0.000 / $-$0.359 & 0.000 / $-$0.031 & 0.000 [0.000, 0.000] \\
+Gemma-2-2B-IT & 4 & 0.000 / $-$0.359 & 0.000 / $-$0.145 & 0.000 [0.000, 0.000] \\
+Llama-3.2-3B & 4 & 0.000 / $-$0.008 & 0.000 / +0.031 & 0.000 [0.000, 0.000] \\
+\bottomrule
+\end{tabular}
+\caption{SEEGeL leave-one-source-out feasibility disclosure: directions are trained either with all sources or with SEEGeL excluded, then evaluated on SEEGeL nationality test pairs only. This table is non-adjudicative at current sample sizes ($n=4$) and is included for transparency, not as evidence. Score effects are unchanged in this low-$n$ setting; margin shifts vary but remain uncertain.}
+\label{tab:seegull-loso}
+\end{table}
+
+\section{Additional Diagnostics and Mechanistic Constraints}
+\noindent\textbf{How to use this section.} These analyses are diagnostic constraints that shape interpretation of the main causal results. They help rule out some explanations and narrow others, but they are not standalone replacements for the primary intervention tests.
+\subsection{Direction-position portability check}
+\noindent\textbf{Reading guide.} Table~\ref{tab:dirpos-portability} directly tests whether prediction-position extraction yields usable directions in completion format. The zero-norm rows motivate the cross-position intervention design used in the main analysis.
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.16\textwidth}p{0.12\textwidth}p{0.16\textwidth}p{0.24\textwidth}p{0.24\textwidth}@{}}
+\toprule
+Model & Direction\\position & Mean direction norm\\(nonzero/total) & Main-test ablation\\$\Delta$score [95\% CI], $q$ & Main-test injection\\$\Delta$score [95\% CI], $q$ \\
+\midrule
+Gemma-2-2B & trait & 53.099 (260/260) & $-$0.025 [$-$0.083, 0.025], 0.549 & +0.092 [0.042, 0.158], 0.0205 \\
+Gemma-2-2B & prediction & 0.000 (0/260) & 0.000 [0.000, 0.000], n/a & 0.000 [0.000, 0.000], n/a \\
+\midrule
+Gemma-2-2B-IT & trait & 57.638 (260/260) & +0.017 [$-$0.025, 0.067], 1.000 & +0.092 [0.042, 0.150], 0.0059 \\
+Gemma-2-2B-IT & prediction & 0.000 (0/260) & 0.000 [0.000, 0.000], n/a & 0.000 [0.000, 0.000], n/a \\
+\midrule
+Llama-3.2-3B & trait & 5.259 (280/280) & $-$0.017 [$-$0.063, 0.033], 0.727 & +0.292 [0.192, 0.408], 0.000004 \\
+Llama-3.2-3B & prediction & 0.000 (0/280) & 0.000 [0.000, 0.000], n/a & 0.000 [0.000, 0.000], n/a \\
+\bottomrule
+\end{tabular}
+\caption{Prediction-position direction portability check. In completion format, train-split stereotype/anti contexts are identical at prediction position, so extracted prediction-position directions collapse to zero and causal deltas vanish.}
+\label{tab:dirpos-portability}
+\end{table}
+\noindent\textbf{Key takeaway.} Usable stereotype directions in this format are trait-position objects applied cross-position at prediction time; same-position extraction at prediction tokens is degenerate.
+
+\subsection{Per-axis sign reliability}
+\noindent\textbf{Reading guide.} Table~\ref{tab:sign-audit-axis} gives axis-level agreement rates and adjusted $q$-values. The table is best used to inspect regime heterogeneity (anti-aligned, near-random, aligned) rather than to claim broad model-level confirmation from any single axis.
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{lllll}
+\toprule
+Model & Axis & DLA sign agreement & $q_{\text{DLA}}$ & AtP sign agreement ($q_{\text{AtP}}$) \\
+\midrule
+Gemma-2-2B & age & 1.000 & 0.562 & 0.000 (1.000) \\
+Gemma-2-2B & disability & 0.300 & 0.562 & 0.750 (0.938) \\
+Gemma-2-2B & gender & 0.333 & 0.773 & 0.250 (0.938) \\
+Gemma-2-2B & nationality & 0.200 & 0.562 & 0.667 (1.000) \\
+Gemma-2-2B & physical\_appearance & n/a & n/a & n/a (n/a) \\
+Gemma-2-2B & profession & 0.750 & 0.773 & 0.000 (0.938) \\
+Gemma-2-2B & race & 1.000 & 0.004 & 0.167 (0.938) \\
+Gemma-2-2B & religion & 0.250 & 0.277 & 0.429 (1.000) \\
+Gemma-2-2B & sexual\_orientation & 0.400 & 1.000 & 0.000 (0.938) \\
+Gemma-2-2B & socioeconomic & 0.769 & 0.277 & 0.833 (0.938) \\
+\midrule
+Gemma-2-2B-IT & age & 0.000 & 1.000 & n/a (n/a) \\
+Gemma-2-2B-IT & disability & 0.000 & 0.700 & n/a (n/a) \\
+Gemma-2-2B-IT & gender & 0.000 & 0.109 & 0.750 (0.859) \\
+Gemma-2-2B-IT & nationality & n/a & n/a & n/a (n/a) \\
+Gemma-2-2B-IT & physical\_appearance & 0.714 & 0.700 & 0.000 (0.313) \\
+Gemma-2-2B-IT & profession & 0.750 & 0.729 & 1.000 (0.859) \\
+Gemma-2-2B-IT & race & n/a & n/a & n/a (n/a) \\
+Gemma-2-2B-IT & religion & 0.231 & 0.215 & 0.333 (0.859) \\
+Gemma-2-2B-IT & sexual\_orientation & 0.176 & 0.089 & 0.500 (1.000) \\
+Gemma-2-2B-IT & socioeconomic & n/a & n/a & n/a (n/a) \\
+\midrule
+Llama-3.2-3B & age & 0.000 & 0.378 & 0.500 (1.000) \\
+Llama-3.2-3B & disability & 0.000 & 1.000 & 1.000 (1.000) \\
+Llama-3.2-3B & gender & 0.667 & 1.000 & 0.500 (1.000) \\
+Llama-3.2-3B & nationality & 0.222 & 0.378 & 0.143 (1.000) \\
+Llama-3.2-3B & physical\_appearance & 0.000 & 0.156 & 0.333 (1.000) \\
+Llama-3.2-3B & profession & 0.727 & 0.378 & 0.400 (1.000) \\
+Llama-3.2-3B & race & 0.308 & 0.381 & 0.600 (1.000) \\
+Llama-3.2-3B & religion & 1.000 & 0.156 & 0.500 (1.000) \\
+Llama-3.2-3B & sexual\_orientation & 0.750 & 0.781 & 1.000 (1.000) \\
+Llama-3.2-3B & socioeconomic & 0.273 & 0.378 & 0.667 (1.000) \\
+\bottomrule
+\end{tabular}
+\caption{Per-axis attribution-sign agreement rates (vs causal direction) with FDR-adjusted $q$-values.}
+\label{tab:sign-audit-axis}
+\end{table}
+
+\subsection{Secondary geometric diagnostics}
+\label{sec:secondary}
+All analyses in this subsection are diagnostic geometry and are included to support interpretation of the intervention results. They are descriptive constraints, not primary decision endpoints.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{build/fig_rank_sweep.png}
+\caption{Rank-sweep diagnostic: axis-mean stereotype score vs intervention rank $k$ for the three core models.}
+\label{fig:rank-sweep}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.88\columnwidth]{build/fig_dose_response.png}
+\caption{Dose-response diagnostic split into separate score and margin panels to avoid dual-axis compression.}
+\label{fig:dose-response}
+\end{figure}
+
+\paragraph{Cross-cultural direction uncertainty (cross-cultural cosine analysis).}
+US vs non-US cosine estimates are small to moderate but heterogeneous, and bootstrap CIs are wide in low-$n$ settings. For US vs South-Asia framing, mean cosine is 0.0366 (Gemma), 0.0105 (Gemma-IT), and 0.0887 (Llama). We therefore treat cross-cultural direction conclusions as exploratory rather than definitive.
+
+\paragraph{Rank sweep.}
+Figure~\ref{fig:rank-sweep} shows that axis-averaged score is non-monotone in intervention rank: Gemma and Gemma-IT both reach their lowest mean score at rank 2 (0.433 and 0.356, respectively), then degrade at higher ranks; Llama is flatter and noisier, with best average at rank 16 (0.370) but weak consistency across axes. The non-monotonicity at higher ranks mirrors the multi-site pattern in multi-site robustness stress test: ablating more subspace components does not produce proportionally larger stereotype reduction.
+
+\paragraph{Dose response.}
+Figure~\ref{fig:dose-response} shows score and margin response separately. Across models, margin responds more smoothly than score to signed injection scale $\alpha$. Spearman $\rho(\alpha, \text{mean margin})$ is 1.00 (Gemma), 0.983 (Gemma-IT), 1.00 (Llama), while score is weaker/flatter for Gemma-IT and Llama. This aligns with linear-representation/steering findings that signed activation movement can be highly monotone in logit-margin space \citep{zou2023repeng,park2023linear}; our additional result is that monotone margin movement does not guarantee large behavioral flip-through.
+
+\paragraph{Layer mediation.}
+Gemma shows a middle-layer accessibility band (layers 9--12 among top score-moving layers). Llama shows smaller absolute score sensitivity across layers, consistent with weaker causal-local removability. We additionally ran a one-pass pathway decomposition extension: projection applied to full residual stream, attention-only outputs, and MLP-only outputs at prediction position. Residual projection is consistently stronger than either component-specific projection in all models, while MLP-only effects are generally larger than attention-only effects (Table~\ref{tab:pathway-decomp}).
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{llcc}
+\toprule
+Model & Target & Mean$\pm$SD $|\Delta$score$|$ & Mean$\pm$SD $|\Delta$margin$|$ \\
+\midrule
+Gemma-2-2B & residual & 0.0306$\pm$0.0631 & 0.2673$\pm$0.4545 \\
+ & attention-only & 0.0160$\pm$0.0493 & 0.0384$\pm$0.0458 \\
+ & MLP-only & 0.0160$\pm$0.0484 & 0.0462$\pm$0.0640 \\
+\midrule
+Gemma-2-2B-IT & residual & 0.0199$\pm$0.0497 & 0.2017$\pm$0.2492 \\
+ & attention-only & 0.0018$\pm$0.0128 & 0.0232$\pm$0.0295 \\
+ & MLP-only & 0.0018$\pm$0.0128 & 0.0260$\pm$0.0294 \\
+\midrule
+Llama-3.2-3B & residual & 0.0143$\pm$0.0381 & 0.0690$\pm$0.1027 \\
+ & attention-only & 0.0016$\pm$0.0121 & 0.0123$\pm$0.0131 \\
+ & MLP-only & 0.0033$\pm$0.0171 & 0.0198$\pm$0.0370 \\
+\bottomrule
+\end{tabular}
+\caption{Pathway-decomposition summary. Values are axis-layer means of absolute effect magnitudes with SD across axis-layer cells; reported ordering is a central tendency rather than a guaranteed per-axis relation.}
+\label{tab:pathway-decomp}
+\end{table}
+\noindent\textbf{Key takeaway.} Residual-stream projection is consistently strongest at the aggregate level, with MLP-only effects generally larger than attention-only effects; this constrains but does not uniquely identify the underlying mechanism.
+
+\subsection{Alternative-explanation constraint map}
+\noindent\textbf{Reading guide.} Table~\ref{tab:alt-mech} summarizes what is constrained versus still open mechanistically. It is intended as a compact interpretation scaffold linking multiple diagnostics back to the central causal findings.
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{p{0.28\columnwidth}p{0.60\columnwidth}}
+\toprule
+Alternative explanation & Empirical constraint from this paper \\
+\midrule
+Pure low-signal floor in Llama & Constrained: injection is large and significant (+0.292 in the primary intervention analysis; +0.233 in the direct contrast matrix). Signal is writable even when removal is weak. \\
+Ceiling/saturation at stereotype base only & Constrained: the direct contrast matrix shows weak removal for both stereotype and anti base targets under the completion-format constraint. \\
+Noise/underpowered nulls explain asymmetry & Partly constrained: direct contrast test (Table~\ref{tab:matched-contrast}) is significant for Gemma and Llama. \\
+Routing/QK-only mechanism & Still open: residual-direction edits can fail even when signal is detectable; dedicated QK/OV decomposition is future work. \\
+\bottomrule
+\end{tabular}
+\caption{Alternative explanations: constrained vs unresolved by current evidence.}
+\label{tab:alt-mech}
+\end{table}
+\noindent\textbf{Key takeaway.} The diagnostics constrain floor/saturation-only accounts and pure-noise explanations, while leaving circuit-level routing alternatives open.
+
+\section{Reporting Scope and Claim Summary}
+\noindent\textbf{How to use this section.} This section consolidates scope boundaries and claim strength in one place so readers can map each conclusion to its strongest supporting evidence.
+\subsection{Limitations and reporting scope}
+\label{sec:limitations-appendix}
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Model breadth and scale.} The confirmatory core covers three 2B--3B decoder transformers from two families (Gemma and Llama). We add a post-hoc extension on four additional models (Qwen-3B, Qwen-3B-Instruct, Mistral-7B, OLMo-2-7B), but this extension is non-preregistered and does not close architecture/scale coverage gaps. Findings may still not generalize to stronger RLHF/DPO regimes, substantially larger scales, or other tokenizer/architecture families (e.g., Phi, Falcon, larger Qwen variants).
+  \item \textbf{External baselines.} We do not run direct head-to-head comparisons with non-local debiasing baselines (e.g., LEACE-style global erasure \citep{belrose2023leace}, fine-tuning mitigation, prompt-level safeguards). Those methods are outside the single-site causal bottleneck tested here.
+  \item \textbf{Benchmark scope and sample size.} Core extraction is StereoSet-centered; transfer failures may reflect both mechanism mismatch and benchmark construction differences \citep{blodgett2021salmon}. Non-US subsets are exploratory in this draft, and SEEGeL leave-one-source-out feasibility disclosure uses $n=4$ (non-adjudicative for circularity). Several axis-specific evaluations are low-$n$, so model-level aggregation is the stronger inferential unit.
+\item \textbf{Mechanism identification.} Current evidence remains non-identifying at circuit granularity. Even with coarse pathway decomposition (residual vs attention-only vs MLP-only), full OV/QK routing and thresholded readout mechanisms remain unresolved.
+\end{enumerate}
+
+\subsection{Claim strength map}
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{p{0.32\columnwidth}p{0.18\columnwidth}p{0.40\columnwidth}}
+\toprule
+Claim & Strength & Primary evidence \\
+\midrule
+Inject $>$ remove asymmetry (Gemma, Llama) & Confirmed & Method-A matched-operator contrast, $q<0.01$ \\
+Inject $>$ remove asymmetry (Gemma-IT) & Trend only & Method-A matched-operator contrast, $q=0.180$ \\
+Inject $>$ remove asymmetry (4-model extension) & External-validity trend support & Matched-operator contrast significant in 3/4 added models (Table~\ref{tab:ext4-summary}) \\
+Attribution sign unreliable (Gemma-IT DLA) & Confirmed & Sign-reliability audit, $q=0.0136$ \\
+Attribution sign unreliable (Gemma, Llama) & Not significant & Sign-reliability audit, $q>0.1$ \\
+Large-effect cross-source transfer absent & Constrained null & Transfer matrix, low-power regime \\
+No single-site bottleneck; multiple mechanisms plausible & Pattern-consistent & Layer mediation and multi-site analyses, non-identifying \\
+\bottomrule
+\end{tabular}
+\caption{Claim strength map: what is confirmed, what is directional trend, and what remains open.}
+\label{tab:claim-strength}
+\end{table}
+\noindent\textbf{Key takeaway.} The strongest claims are direct inject/remove asymmetry in Gemma/Llama and Gemma-IT attribution-sign inversion; transfer and mechanism claims remain bounded by current power and granularity.

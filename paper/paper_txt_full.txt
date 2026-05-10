@@ -1,0 +1,401 @@
+          Easy to Add, Hard to Erase: Causal Evidence on Stereotype Editing in
+                                        LLM
+
+
+                                              Anonymous ACL submission
+
+
+
+
+001                         Abstract                               stereotype-aligned signal is easier to add than to          043
+                                                                   remove with local interventions. This motivates a           044
+002       Can stereotypes in language models be sur-
+                                                                   stricter standard for debiasing claims: causal-local        045
+003       gically removed once we locate them? We
+004       answer this by auditing existing stereotype-             validity, uncertainty-aware inference, and transfer         046
+
+005       editing methods with causal interventions                validation should all be satisfied.                         047
+006       across three open-weight LLMs. We evaluate
+                                                                   Scope note. This work is a mechanistic audit                048
+007       four method families: residual direction editing,
+008       attribution-ranked single-site ablation, multi-          of local editing methods, not a leaderboard com-            049
+009       site ablation, and cross-dataset target transfer.        parison against all debiasing families (e.g., global        050
+010       Across methods, local removal is usually weak            representation erasure or fine-tuning mitigation).          051
+011       or inconsistent: stereotype-aligned signal is eas-       We discuss that limitation explicitly in Section 9.         052
+012       ier to inject than to erase. We identify three
+013       reasons naive removal fails: sign-blind inter-           2     Audit Protocol and Reproducibility                    053
+014       vention sets can backfire, attribution signs are
+015       often unreliable guides to causal direction, and         2.1    Data, Splits, and Pair Counts                        054
+016       overlapping components across benchmarks do              Primary causal evaluations use StereoSet-style              055
+017       not reliably transfer functionally. We report
+                                                                   completion pairs (Nadeem et al., 2021); trans-              056
+018       both behavioral effects (stereotype score delta)
+019       and mechanistic effects (margin delta) to dis-           fer stress tests use CrowS-Pairs (Nangia et al.,            057
+
+020       tinguish decision flips from confidence shifts.          2020). For each model, Exp01 constructs tokenizer-          058
+021       Overall, the evidence suggests that stereotype           aligned contrast pairs and a deterministic 80/20            059
+022       behavior is often supported by distributed or re-        train-test split.                                           060
+023       dundant pathways rather than single removable               Each primary model has 600 aligned pairs to-             061
+024       bottlenecks, implying that debiasing claims re-          tal (480 train, 120 test). Exact counts by source,          062
+025       quire direct causal validation and transfer test-
+                                                                   axis, and split are fixed and reported in Appendix          063
+026       ing, not localization alone.
+                                                                   Table 7.                                                    064
+
+027   1    Introduction
+                                                                   2.2    Interventions and Outcomes                           065
+028   Stereotypes remain present in modern LLMs,                   For pair i, at prediction position pi , define margin       066
+029   and many mitigation methods assume that once
+030   stereotype-related signal is localized, local editing        mi = log p(stereoi | xi , pi ) − log p(antii | xi , pi ).   067
+031   should remove it. In practice, that assumption is
+032   often taken for granted.                                     Behavioral score is 1[mi > 0]. We report:                   068
+033      This paper audits that assumption as a mecha-
+034   nistic question: when stereotype-editing methods             • Behavioral endpoint: stereotype score and                 069
+
+035   succeed, fail, or backfire, what causal evidence               ∆score.                                                   070
+
+036   supports the claim? We evaluate four method fam-             • Mechanistic sensitivity: mean margin and                  071
+037   ilies on three open-weight models (Gemma-2-2B,                 ∆margin.                                                  072
+038   Gemma-2-2B-IT, Llama-3.2-3B): residual direc-
+039   tion editing, attribution-ranked single-site editing,        Causal-local      constraint. In        completion-         073
+040   multi-site editing, and cross-dataset target transfer.       formatted pairs, trait tokens are after the decision        074
+041      Our central practical finding is constrained but          position (q > p), so interventions at trait                 075
+042   operational: across these three tested models,               position cannot causally change the decision                076
+
+
+                                                               1
+                                                                     Model           Baseline Score [95% CI]   Pred-pos Ablation ∆score [95% CI], q   Corrupt-to-clean ∆score [95% CI], q
+077   logit at p under autoregressive masking. Pri-                  Gemma-2-2B        0.533 [0.442, 0.617]        -0.025 [-0.083, 0.025], 0.549         +0.092 [0.042, 0.158], 0.0205
+                                                                     Gemma-2-2B-IT     0.483 [0.400, 0.567]        +0.017 [-0.025, 0.067], 1.000         +0.092 [0.042, 0.150], 0.0059
+078   mary causal interventions therefore operate at                 Llama-3.2-3B      0.417 [0.317, 0.508]        -0.017 [-0.063, 0.033], 0.727        +0.292 [0.192, 0.408], 0.000004
+
+
+079   prediction_position.
+                                                                    Table 1: Exp04 (runs 009/007/008): paired deltas vs
+080   Method operators.                                             baseline with BH-FDR q-values.
+
+081   • Direction ablation: at layer ℓ, project out stereo-
+082     type direction dℓ,a for axis a, hℓ,p ← hℓ,p −(hℓ,p ·
+                                                                    3        RQ1: Is There a Surgically Removable                                                                           120
+                                                                             Causal Subspace? (Method A)                                                                                    121
+083     dˆℓ,a )dˆℓ,a .
+                                                                    Exp01 confirms detectability but not removabil-                                                                         122
+084   • Corrupt-to-clean injection: run anti-stereotype             ity: mean probe AUC is 0.752 (Gemma), 0.762                                                                             123
+085     text and inject +dℓ,a at matched layers (our sym-           (Gemma-IT), 0.767 (Llama), while mean cross-                                                                            124
+086     metry stress test).                                         dataset direction cosine is near zero (-0.007, -0.020,                                                                  125
+
+087   • Single/multi-site ablation: zero component                  -0.052 respectively).                                                                                                   126
+
+088     outputs at p for ranked attention/MLP sites;                   Table 1 gives the primary causal-local test                                                                          127
+
+089     attention-head rows use head-specific pre-                  (Exp04). The pattern is asymmetric: injection is                                                                        128
+
+090     projection hooks.                                           significant in all three models, while ablation is                                                                      129
+                                                                    weak and statistically consistent with zero for all                                                                     130
+091   2.3   Ranking Construction                                    three.                                                                                                                  131
+
+092   We use DLA rankings from Exp02 and attribution-                  This avoids unstable ratio statistics with near-                                                                     132
+
+093   patching (AtP) rankings from Exp03.            In             zero denominators: for Llama, the correct interpre-                                                                     133
+
+094   Exp09/11, ranking_source is {union, dla, atp};                tation is large injection effect + null ablation effect,                                                                134
+
+095   promoters-only applies sign filtering within the              not an inject/remove ratio.                                                                                             135
+
+096   selected ranking source. For A1, AtP-only ranking                To test the asymmetric-base-distribution alter-                                                                      136
+
+097   excludes synthetic head fallback (block-level AtP             native directly, Exp16 evaluates a full 2×2 matrix                                                                      137
+
+098   only).                                                        (remove/inject × stereotype/anti base text). In all                                                                     138
+                                                                    three models, removal remains statistically weak                                                                        139
+099   2.4   Statistics and Decision Rules                           (Gemma: −0.025, Gemma-IT: +0.017, Llama:                                                                                140
+
+100   Bootstrap CIs are pair-level resampling of within-            −0.017), while injection remains significantly                                                                          141
+
+101   condition means (500 resamples in Exp04; 1000 in              positive (Gemma: +0.075, Gemma-IT: +0.067,                                                                              142
+
+102   Exp11/15). For paired deltas, we use:                         Llama: +0.233). This supports an asymmetry                                                                              143
+                                                                    claim under matched intervention operators, not                                                                         144
+103   • two-sided paired sign test on score differences,            only under a single corrupt-to-clean condition.                                                                         145
+                                                                       Gemma-IT also has a lower baseline stereotype                                                                        146
+104   • two-sided Wilcoxon signed-rank on margin dif-               score than Gemma (0.483 vs 0.533), but similar                                                                          147
+105     ferences,                                                   injectability in Exp04/Exp16. This weakens a pure                                                                       148
+                                                                    floor-effect explanation for IT ablation resistance:                                                                    149
+106   • Benjamini–Hochberg FDR correction within
+                                                                    the direction remains behaviorally writable even                                                                        150
+107     each experiment table.
+                                                                    when removal is weak.                                                                                                   151
+
+108      A condition counts as strong debiasing only if             Controls. Random same-rank and norm-matched                                                                             152
+109   (i) ∆score < 0 with CI excluding 0, (ii) ∆margin              random controls are usually small and non-                                                                              153
+110   is directionally consistent, and (iii) effect is robust       significant. Label-permutation is explicitly con-                                                                       154
+111   under transfer stress tests.                                  founded in this setup (it can retain partial anti-                                                                      155
+
+112   2.5   Determinism and Run Configuration                       direction correlation), so we do not use it as a                                                                        156
+                                                                    specificity validator.                                                                                                  157
+113   All results here are from frozen manifests with
+114   deterministic split indices and fixed seeds. Core             Capability checks. Following pre-registered                                                                             158
+115   runs use max length 256, bfloat16, and forward-               guardrails, Exp04 reports BBQ and MMLU-5shot                                                                            159
+116   pass scoring (no generation sampling). For                    on every condition (100 items each). For direction-                                                                     160
+117   Exp04/11/15, held-out caps are 120 valid test pairs           ablation-at-pred-position, BBQ changes were small                                                                       161
+118   (or fewer when axis/source support is smaller); ef-           and inconsistent across models (+0.04/ − 0.01/ −                                                                        162
+119   fective per-axis n is reported in every output row.           0.02 for Gemma/Gemma-IT/Llama), while MMLU                                                                              163
+
+
+                                                                2
+       Model           DLA Sign Agreement (95% Wilson CI), p   AtP Sign Agreement (95% Wilson CI), p       Model           StereoSet→CrowS ∆score [95% axis-bootstrap CI], sig. axes   CrowS→StereoSet ∆score [95% axis-bootstrap CI], sig. axes
+                                                                                                           Gemma-2-2B                      +0.067 [0.000, 0.200], 0/3                                  +0.000 [0.000, 0.000], 0/3
+       Gemma-2-2B             41.4% [31.2, 52.5], 0.188               42.9% [28.0, 59.1], 0.500            Gemma-2-2B-IT                   +0.367 [0.000, 0.600], 0/3                                  +0.222 [0.000, 0.500], 0/3
+       Gemma-2-2B-IT         28.3% [18.0, 41.3], 0.0045               44.4% [27.6, 62.7], 0.701            Llama-3.2-3B                    +0.083 [0.000, 0.250], 0/3                                  -0.015 [-0.200, 0.154], 0/3
+
+       Llama-3.2-3B           46.6% [34.7, 58.8], 0.694               50.0% [36.9, 63.1], 1.00
+
+                                                                                                           Table 4:     Exp15 cross-source transfer (runs
+      Table 2: Exp14 (runs 007/008/009): sign-agreement                                                    003/002/004). Significance count uses row-level
+      audit vs chance (50%).                                                                               FDR-adjusted score tests (q < 0.1).
+
+       Model / Axis               Sites             ∆score [95% CI], q                  ∆margin
+       Llama profession             8         +0.150 [0.000, 0.300], 1.000                +0.130           26.3% (Llama), while DLA-sign suppressor frac-                                                                                          198
+       Llama nationality            8         +0.000 [-0.333, 0.222], 1.000               -0.406
+       Gemma gender                 8          +0.000 [0.000, 0.000], n/a                 -0.942
+                                                                                                           tions are 40.0%, 40.0%, and 33.8%, respectively.                                                                                        199
+       Gemma gender                20         +0.000 [-0.267, 0.267], 1.000               -0.469           This separates true causal contamination from sign-                                                                                     200
+       Gemma profession             8          +0.000 [0.000, 0.000], n/a                 -0.288
+       Gemma profession            20         +0.000 [-0.200, 0.200], 1.000               -0.569           estimation artifacts and keeps the backfire analysis                                                                                    201
+                                                                                                           internally consistent.                                                                                                                  202
+      Table 3: Exp11 heterogeneity snapshot (runs 007 and
+      006).                                                                                                6       RQ3: How Reliable Are Attribution                                                                                               203
+                                                                                                                   and Transfer-Based Debiasing Claims?                                                                                            204
+                                                                                                                   (Method D)                                                                                                                      205
+164   was unchanged at this resolution (all ∆ ≈ 0).
+                                                                                                           Transfer is central to deployment claims. Exp15                                                                                         206
+165   4        RQ2: Does Asymmetry Persist Under                                                           runs a 2×2 matrix:          StereoSet→StereoSet,                                                                                        207
+166            Component-Level Editing? (Methods                                                           StereoSet→CrowS,                 CrowS→CrowS,                                                                                           208
+167            B/C)                                                                                        CrowS→StereoSet.        We define transfer effi-                                                                                        209
+                                                                                                           ciency per axis as                                                                                                                      210
+168   Method-B asks whether attribution rankings
+169   (and their signs) identify causal edit direction.                                                                                                                      ∆cross-source
+                                                                                                                                       efficiency =                                                                                                211
+170   Exp14 audits this directly against observed single-                                                                                                                    ∆within-source
+171   component causal deltas.
+                                                                                                           for the same rank-source and axis.                                                                                                      212
+172      Interpretation is calibration-oriented rather than                                                   The transfer result is not just “small effect”; it                                                                                   213
+173   absolute: attribution magnitude can still help can-                                                  is non-robust: none of the cross-source axis tests                                                                                      214
+174   didate discovery, but sign is often not a reliable                                                   survive FDR in any model. Overlap of ranked com-                                                                                        215
+175   intervention-direction label. In these runs, only                                                    ponents therefore does not guarantee functional                                                                                         216
+176   one DLA axis in Gemma and one in Gemma-IT                                                            transfer.                                                                                                                               217
+177   remains significant after FDR; no AtP axis-level
+178   sign-agreement effect survives FDR.                                                                  7       Secondary Geometric Diagnostics                                                                                                 218
+                                                                                                                   (Exp05/07/08/10)                                                                                                                219
+179   5        Method C: Multi-Site Editing and
+180            Causal Contamination                                                                        These analyses are supportive diagnostics rather                                                                                        220
+                                                                                                           than headline evidence, but they help interpret fail-                                                                                   221
+181   Exp11 tests whether multi-site ablation resolves                                                     ure modes.                                                                                                                              222
+182   single-site failures. It does so inconsistently and
+183   axis-dependently.                                                                                    Cross-cultural direction uncertainty (Exp05).                                                                                           223
+                                                                                                           US vs non-US cosine estimates are small to moder-                                                                                       224
+184      For Llama (A1, AtP-only promoters, run-007),
+                                                                                                           ate but heterogeneous, and bootstrap CIs are wide                                                                                       225
+185   profession at n = 8 still backfires (∆score =
+                                                                                                           in low-n settings. For US vs South-Asia framing,                                                                                        226
+186   +0.150, CI [0.000, 0.300], q = 1.0), while other
+                                                                                                           mean cosine is 0.0366 (Gemma), 0.0105 (Gemma-                                                                                           227
+187   axes are near-zero with wide CIs. For Gemma base
+                                                                                                           IT), and 0.0887 (Llama). We therefore treat cross-                                                                                      228
+188   (B1, run-006), gender/profession remain largely
+                                                                                                           cultural direction conclusions as exploratory rather                                                                                    229
+189   resistant over n ∈ {8, 12, 16, 20}.
+                                                                                                           than definitive.                                                                                                                        230
+190      This motivates reporting score and margin
+191   jointly: margin can move while behavioral deci-                                                      Rank sweep (Exp07). Axis-averaged score is                                                                                              231
+192   sions do not flip.                                                                                   non-monotone in intervention rank: Gemma and                                                                                            232
+193      To avoid circular suppressor reasoning, Exp17                                                     Gemma-IT both reach their lowest mean score at                                                                                          233
+194   classifies suppressors/promoters from observed                                                       rank 2 (0.433 and 0.356, respectively), then de-                                                                                        234
+195   Exp09 causal deltas (not DLA sign). In top-                                                          grade at higher ranks; Llama is flatter and noisier,                                                                                    235
+196   8 union-ranked sets, causal suppressor fractions                                                     with best average at rank 16 (0.370) but weak con-                                                                                      236
+197   are 13.8% (Gemma), 18.8% (Gemma-IT), and                                                             sistency across axes.                                                                                                                   237
+
+
+                                                                                                       3
+238   Dose response (Exp08). Across models, margin                 Finding in This Paper                               Registration Status
+
+239   responds more smoothly than score to signed injec-           Method A inject/remove asymmetry (Exp04)            Pre-registered family (H8/H9-adjacent), re-
+                                                                                                                       ported with updated pred-position operator
+240   tion scale α. Spearman ρ(α, mean margin) is 1.00             Method C multi-site robustness failures (Exp11)     Pre-registered family (H6), with A1/B1 exten-
+                                                                                                                       sions
+241   (Gemma), 0.983 (Gemma-IT), 1.00 (Llama), while               Method D cross-dataset transfer matrix (Exp15)      Pre-registered transfer motivation (H10-
+242   score is weaker/flatter for Gemma-IT and Llama.                                                                  adjacent), expanded to component-transfer ma-
+                                                                                                                       trix
+                                                                   Method B sign-reliability audit (Exp14)             Post-hoc validity extension
+243   Layer mediation (Exp10). Gemma shows a                       DLA/AtP sign-calibration interpretation             Post-hoc interpretation grounded in Exp14 out-
+                                                                                                                       puts
+244   middle-layer accessibility band (layers 9–12 among
+245   top score-moving layers). Llama shows smaller               Table 5: Mapping of headline findings to pre-registered
+246   absolute score sensitivity across layers (mean abso-        vs post-hoc status.
+247   lute per-layer ∆score 0.0094 vs 0.0254 in Gemma),
+248   consistent with weaker causal-local removability.            Table      Experiment run(s)               Models
+                                                                   Table 1    Exp04 run-009/007/008           Gemma / Gemma-IT / Llama
+                                                                   Table 2    Exp14 run-007/008/009           Gemma / Gemma-IT / Llama
+249   8   Cross-Method Synthesis                                   Table 3    Exp11 run-006 and run-007       Gemma and Llama
+                                                                   Table 4    Exp15 run-003/002/004           Gemma / Gemma-IT / Llama
+250   The four audited method families point to the same
+251   operational risk in these runs:                             Table 6: Exact manifest references for the headline
+                                                                  tables.
+252   • Localization and detectability are not sufficient
+253     evidence of removable bias.
+                                                                  4. Cross-cultural sample size. Non-US subsets                                              280
+
+254   • Injection/removal asymmetry is statistically                 are exploratory in this draft and are treated as                                        281
+
+255     clearer than local-removal success.                          preliminary evidence rather than a primary pil-                                         282
+                                                                     lar.                                                                                    283
+256   • Sign errors and axis heterogeneity make naive
+257     top-k editing brittle.                                    5. Mechanism identification. Current evidence is                                           284
+                                                                     pattern-consistent with redundancy/self-repair,                                         285
+
+258   • Transfer fragility limits benchmark-local debias-            not definitive causal-path decomposition.                                               286
+
+259     ing claims.
+                                                                  10       Conclusion                                                                        287
+260      Mechanistically, distributed/redundant pathway
+                                                                  The paper’s claim is intentionally strict and falsi-                                       288
+261   explanations remain plausible and consistent with
+                                                                  fiable: in the three tested models, local stereotype                                       289
+262   the observed patterns, but are not uniquely identi-
+                                                                  editing is often easy to add but hard to erase. Ro-                                        290
+263   fied by current interventions; this remains an infer-
+                                                                  bust debiasing claims therefore require more than                                          291
+264   ence target rather than a proved circuit theorem.
+                                                                  localization: paired causal tests with uncertainty,                                        292
+                                                                  sign reliability auditing, and transfer validation are                                     293
+265   9   Limitations and Reporting Scope
+                                                                  necessary before deployment-facing conclusions.                                            294
+266   1. Model breadth. Three models are insufficient
+267      for universal taxonomy claims; we report ob-             A     Pre-Registration Map                                                                 295
+
+268      served patterns for these models only.
+                                                                  B    Run Manifests for Main Tables                                                         296
+
+269   2. External baselines. We do not run direct head-           C     Exact Split Counts                                                                   297
+270      to-head comparisons with non-local debiasing
+271      baselines (e.g., LEACE-style global erasure              D     Per-Axis Cross-Source Transfer                                                       298
+272      (Belrose et al., 2023), fine-tuning mitigation,
+273      prompt-level safeguards).
+                                                                  E    Per-Axis Sign Reliability                                                             299
+
+
+274   3. StereoSet dependence. Core extraction is
+                                                                  References                                                                                 300
+
+275      StereoSet-centered; transfer failure may reflect         Nora Belrose, David Furman, Logan Smith, Danny Ha-                                         301
+276      both mechanism mismatch and benchmark con-                 lawi, Kris McKinney-Bock, Tuomas Oikarinen, Neel                                         302
+                                                                    Vyas, Danny Hernandez, Andy Zou, Samuel Marks,                                           303
+277      struction differences (including documented                Trenton Bricken, and Chris Olah. 2023. LEACE:                                            304
+278      StereoSet validity concerns about lexical/format           Perfect linear concept erasure in closed form. arXiv                                     305
+279      artifacts).                                                preprint arXiv:2306.03819.                                                               306
+
+
+                                                              4
+       Source                    Axis                   Gemma train    Gemma test      Gemma-IT train      Gemma-IT test        Llama train   Llama test
+       crows_pairs               age                             44             9                   44                      9           43            9
+       crows_pairs               disability                      17             6                   17                      6           16            5
+       crows_pairs               gender                          19             4                   19                      4           20            4
+       crows_pairs               nationality                     28             9                   28                      9           35            9
+       crows_pairs               physical_appearance             33            10                   33                     10           34            9
+       crows_pairs               race                            22             5                   22                      5           27            3
+       crows_pairs               religion                        34             4                   34                      4           31            4
+       crows_pairs               sexual_orientation              49            11                   49                     11           51            9
+       crows_pairs               socioeconomic                   45            19                   45                     19           42           18
+       seegull_global_v2         nationality                     22             4                   22                      4           15            4
+       stereoset_intrasentence   gender                          32            11                   32                     11           36           13
+       stereoset_intrasentence   profession                      52            20                   52                     20           59           20
+       stereoset_intrasentence   race                            59             6                   59                      6           48           10
+       stereoset_intrasentence   religion                        24             2                   24                      2           23            3
+       Total aligned/tested      all axes                  480 / 120                         480 / 120                            480 / 120
+
+
+                 Table 7: Exact source-axis train/test counts from Exp01 split artifacts used by the primary runs.
+
+                                        Model            Condition          Axis           ∆score [95% CI]        qscore
+                                        Gemma-2-2B       StereoSet→CrowS    gender       0.000 [-0.750, 0.750]    1.000
+                                        Gemma-2-2B       StereoSet→CrowS    race         0.200 [-0.400, 0.800]    1.000
+                                        Gemma-2-2B       StereoSet→CrowS    religion     0.000 [0.000, 0.000]      n/a
+                                        Gemma-2-2B       CrowS→StereoSet    gender       0.000 [-0.273, 0.273]    1.000
+                                        Gemma-2-2B       CrowS→StereoSet    race         0.000 [-0.500, 0.500]    1.000
+                                        Gemma-2-2B       CrowS→StereoSet    religion     0.000 [0.000, 0.000]      n/a
+                                        Gemma-2-2B-IT    StereoSet→CrowS    gender       0.000 [0.000, 0.000]      n/a
+                                        Gemma-2-2B-IT    StereoSet→CrowS    race         0.600 [0.200, 1.000]     1.000
+                                        Gemma-2-2B-IT    StereoSet→CrowS    religion     0.500 [0.000, 1.000]     1.000
+                                        Gemma-2-2B-IT    CrowS→StereoSet    gender       0.000 [-0.273, 0.273]    1.000
+                                        Gemma-2-2B-IT    CrowS→StereoSet    race         0.167 [0.000, 0.500]     1.000
+                                        Gemma-2-2B-IT    CrowS→StereoSet    religion     0.500 [0.000, 1.000]     1.000
+                                        Llama-3.2-3B     StereoSet→CrowS    gender        0.000 [-0.750, 0.750]   1.000
+                                        Llama-3.2-3B     StereoSet→CrowS    race          0.000 [0.000, 0.000]     n/a
+                                        Llama-3.2-3B     StereoSet→CrowS    religion      0.250 [0.000, 0.750]    1.000
+                                        Llama-3.2-3B     CrowS→StereoSet    gender        0.154 [-0.077, 0.462]   1.000
+                                        Llama-3.2-3B     CrowS→StereoSet    race         -0.200 [-0.600, 0.200]   1.000
+                                        Llama-3.2-3B     CrowS→StereoSet    religion      0.000 [0.000, 0.000]     n/a
+
+
+      Table 8: Exp15 per-axis cross-source score effects (shared axes only). No cross-source score row survives FDR
+      (q < 0.1).
+
+
+307   Moin Nadeem, Anna Bhatt, and Dan Roth. 2021. Stere-
+308    oSet: Measuring stereotypical bias in pretrained lan-
+309    guage models. In Proceedings of the 59th Annual
+310    Meeting of the Association for Computational Lin-
+311    guistics, pages 5356–5371. Association for Compu-
+312    tational Linguistics.
+313   Nikita Nangia, Clara Vania, Rasika Bhalerao, and
+314     Samuel R. Bowman. 2020. CrowS-Pairs: A chal-
+315     lenge dataset for measuring social biases in masked
+316     language models. In Proceedings of the 2020 Con-
+317     ference on Empirical Methods in Natural Language
+318     Processing, pages 1953–1967. Association for Com-
+319     putational Linguistics.
+
+
+
+
+                                                                           5
+         Model           Axis                  DLA sign agreement   qDLA    AtP sign agreement (qAtP )
+         Gemma-2-2B      age                   1.000                0.562   0.000 (1.000)
+         Gemma-2-2B      disability            0.300                0.562   0.750 (0.938)
+         Gemma-2-2B      gender                0.333                0.773   0.250 (0.938)
+         Gemma-2-2B      nationality           0.200                0.562   0.667 (1.000)
+         Gemma-2-2B      physical_appearance   n/a                  n/a     n/a (n/a)
+         Gemma-2-2B      profession            0.750                0.773   0.000 (0.938)
+         Gemma-2-2B      race                  1.000                0.004   0.167 (0.938)
+         Gemma-2-2B      religion              0.250                0.277   0.429 (1.000)
+         Gemma-2-2B      sexual_orientation    0.400                1.000   0.000 (0.938)
+         Gemma-2-2B      socioeconomic         0.769                0.277   0.833 (0.938)
+         Gemma-2-2B-IT   age                   0.000                1.000   n/a (n/a)
+         Gemma-2-2B-IT   disability            0.000                0.700   n/a (n/a)
+         Gemma-2-2B-IT   gender                0.000                0.109   0.750 (0.859)
+         Gemma-2-2B-IT   nationality           n/a                  n/a     n/a (n/a)
+         Gemma-2-2B-IT   physical_appearance   0.714                0.700   0.000 (0.313)
+         Gemma-2-2B-IT   profession            0.750                0.729   1.000 (0.859)
+         Gemma-2-2B-IT   race                  n/a                  n/a     n/a (n/a)
+         Gemma-2-2B-IT   religion              0.231                0.215   0.333 (0.859)
+         Gemma-2-2B-IT   sexual_orientation    0.176                0.089   0.500 (1.000)
+         Gemma-2-2B-IT   socioeconomic         n/a                  n/a     n/a (n/a)
+         Llama-3.2-3B    age                   0.000                0.378   0.500 (1.000)
+         Llama-3.2-3B    disability            0.000                1.000   1.000 (1.000)
+         Llama-3.2-3B    gender                0.667                1.000   0.500 (1.000)
+         Llama-3.2-3B    nationality           0.222                0.378   0.143 (1.000)
+         Llama-3.2-3B    physical_appearance   0.000                0.156   0.333 (1.000)
+         Llama-3.2-3B    profession            0.727                0.378   0.400 (1.000)
+         Llama-3.2-3B    race                  0.308                0.381   0.600 (1.000)
+         Llama-3.2-3B    religion              1.000                0.156   0.500 (1.000)
+         Llama-3.2-3B    sexual_orientation    0.750                0.781   1.000 (1.000)
+         Llama-3.2-3B    socioeconomic         0.273                0.378   0.667 (1.000)
+
+
+Table 9: Exp14 per-axis sign-agreement rates (vs causal direction) with FDR-adjusted q-values.
+
+
+
+
+                                                       6
+

@@ -1,0 +1,264 @@
+\section{Introduction}
+As LLM training shifted to internet-scale data, exhaustive curation became impractical. Stereotype learning therefore moved from an edge case to a predictable byproduct of scale \citep{nadeem2021stereoset,nangia2020crowspairs,ma2023deciphering,blodgett2021salmon}. The dominant practical response has been post-training local editing: train first, then remove harmful internal signal \citep{vig2020causal,zou2023repeng,turner2023steering,tan2024steering}.
+Across this literature, evaluation is often benchmark-local (single dataset family, single task framing), while paired causal write-versus-erase tests and explicit transfer stress tests are less common \citep{meade2022survey,morabito2023debiasing,jin2021transferability,reusens2023multilingual}.
+
+This paper asks a direct causal question: after a model has learned stereotype-related behavior, are local internal edits enough to reliably remove it? We study this with a focused audit that combines paired interventions, component-level analyses, and transfer stress tests under one evaluation protocol.
+
+The main finding is consistent across the model set: writing stereotype preference is usually easier than erasing it. In matched inject-versus-remove tests, score-level asymmetry is significant in 5/7 models and margin-level asymmetry is significant in 7/7. In practice, this means local controllability is real, but reliable local removal is much less robust.
+
+The paper then asks why this gap appears and whether apparent improvements survive benchmark shift. Our results point to brittle intervention geometry (including model-dependent sign reliability and suppressor contamination in ranked sets) and weak cross-source transfer at current evaluation scales. The resulting contribution is a practical validation framework for local debiasing claims: causal intervention tests plus transfer stress tests, rather than localization evidence alone.
+
+For inferential clarity, Section~\ref{sec:main-result} separates the original three-model core from a same-protocol four-model extension; the extension model list and protocol were fixed before outcome inspection.
+
+\section{Related Work}
+Research on social bias in language models established robust benchmark families and measurement concerns, including StereoSet and CrowS-Pairs \citep{nadeem2021stereoset,nangia2020crowspairs} and broader critiques of benchmark validity and representational assumptions \citep{blodgett2021salmon}. Large comparative studies then showed that debiasing gains can vary substantially across benchmarks and may trade off with utility \citep{meade2022survey,morabito2023debiasing}. Together, these works show that bias can be measured and compared, but they do not by themselves establish whether identified internal signals are causally removable.
+
+Mechanistic and representation-editing work has shown that targeted behaviors are often writable through activation steering and linear directions \citep{vig2020causal,zou2023repeng,park2023linear,turner2023steering,tan2024steering}. Related analyses also show that bias-associated features can be localized in model internals \citep{ma2023deciphering}. The open question is whether the same local structures that support writing also support reliable erasing under matched operators.
+
+Attribution and causal tracing methods provide tools for ranking components, but sign and ranking quality are known to vary across settings \citep{kramar2024atp,syed2024atp,elhage2021mathematical}. Work on self-repair and distributed compensation further suggests that removing one component may not remove behavior at the system level \citep{mcgrath2023hydra,rushing2024selfrepair}. This motivates explicit audits of sign reliability and suppressor contamination rather than treating rankings as automatically intervention-ready.
+
+Finally, transfer-oriented debiasing work exists, including cross-task transfer in fine-tuning pipelines and cross-lingual transfer analyses \citep{jin2021transferability,reusens2023multilingual}. But most of this evidence is at the model/task level rather than paired internal causal edits under matched operators. Our transfer matrix is designed to test that missing layer directly. In short, our contribution is not another localization result; it is a causal-and-transfer audit that connects writeability, eraseability, and robustness in one framework.
+
+\section{Setup and Evaluation Protocol}
+This section defines the audit protocol that the rest of the paper follows: identify candidate directions/components, intervene causally at the decision point, and evaluate whether measurable mechanistic movement translates into behavioral debiasing. We pre-specify which endpoints carry confirmatory weight and treat low-power axis-level diagnostics as exploratory.
+
+\subsection{Data, Splits, and Pair Counts}
+Primary causal evaluations use StereoSet intrasentence completion pairs \citep{nadeem2021stereoset}; transfer stress tests use CrowS-Pairs \citep{nangia2020crowspairs}. We use intrasentence format because it provides tightly aligned paired continuations with a well-defined autoregressive prediction position for causal-local interventions. This choice does not establish robustness to StereoSet intersentence format; we treat intersentence replication as future robustness work. For each model, the direction-construction step builds tokenizer-aligned contrast pairs and a deterministic 80/20 train-test split.
+
+Each primary model has 600 aligned pairs total (480 train, 120 test). Exact counts by source, axis, and split are fixed and reported in Appendix Table~\ref{tab:counts}.
+For nationality specifically, SEEGeL contributes part of the direction construction training pool in the default pipeline; we therefore report a leave-one-source-out \emph{feasibility disclosure} that excludes SEEGeL from direction training and evaluates on SEEGeL test pairs (Appendix Table~\ref{tab:seegull-loso}). At $n=4$, this check is non-adjudicative for circularity and is included for transparency only.
+
+\subsection{Interventions and Outcomes}
+For pair $i$, at prediction position $p_i$, define margin
+\[
+m_i = \log p(\text{stereo}_i \mid x_i, p_i) - \log p(\text{anti}_i \mid x_i, p_i).
+\]
+Behavioral score is $\mathbf{1}[m_i > 0]$. We report:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Behavioral endpoint}: stereotype score and $\Delta$score.
+  \item \textbf{Mechanistic sensitivity}: mean margin and $\Delta$margin.
+\end{itemize}
+
+\paragraph{Causal logic of the audit.}
+Many local debiasing claims implicitly follow a three-step chain: identify a stereotype-linked internal direction/component, edit it, then infer that behavior has been robustly debiased. This paper tests whether that third step follows causally. The injection condition is a \emph{sufficiency/writeability} probe: if adding direction $d$ increases stereotype preference, then $d$ has causal leverage on the behavior. The ablation condition is a \emph{necessity/eraseability} probe: if removing $d$ decreases stereotype preference, then $d$ behaves like a removable bottleneck at the edited site. If injection is strong but ablation is weak, the correct interpretation is one-sided controllability (easy to push, hard to undo locally), not successful local removal. Injection is therefore used here as a diagnostic positive control, not as a deployment mitigation action.
+
+\paragraph{Causal-local constraint.}
+In completion-formatted pairs, trait tokens are after the decision position ($q>p$), so interventions at trait position cannot causally change the decision logit at $p$ under autoregressive masking. In this setup, model choice is evaluated at $p$ before those later tokens are read. Primary causal interventions therefore operate at \texttt{prediction\_position}. This constraint is specific to autoregressive completion-style scoring and does not automatically transfer to masked-LM benchmark formats.
+
+\paragraph{Method operators.}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Direction ablation}: at layer $\ell$, project out stereotype direction $d_{\ell,a}$ for axis $a$,
+  \(h_{\ell,p} \leftarrow h_{\ell,p} - (h_{\ell,p}\cdot \hat d_{\ell,a})\hat d_{\ell,a}.\)
+  \item \textbf{Stereotype-direction injection}: run anti-stereotype text and inject $+d_{\ell,a}$ at matched layers (our symmetry stress test).
+  \item \textbf{Single/multi-site ablation}: zero component outputs at $p$ for ranked attention/MLP sites; attention-head rows use head-specific pre-projection hooks.
+\end{itemize}
+
+\paragraph{Direction construction.}
+For axis $a$ and layer $\ell$, we define the residual direction by difference-in-means on training pairs at trait-token positions:
+\[
+\begin{aligned}
+d_{\ell,a}&=\mu^{\text{stereo}}_{\ell,a}-\mu^{\text{anti}}_{\ell,a},\\
+\mu^{\text{stereo}}_{\ell,a}&=\frac{1}{N}\sum_{i=1}^{N} h^{(i,\text{stereo})}_{\ell,t_i},
+\end{aligned}
+\]
+with the analogous definition for $\mu^{\text{anti}}_{\ell,a}$. Here $t_i$ is the trait-token position for pair $i$. Probe AUC is reported as a detectability diagnostic only; it does not define $d_{\ell,a}$.
+
+A natural concern is cross-position portability: interventions are applied at prediction position $p_i$, while $d_{\ell,a}$ is extracted at trait position $t_i$. We tested this directly with a prediction-position extraction rerun followed by the same direction-ablation/injection evaluation. Across all three models, prediction-position direction vectors collapse to zero norm (nonzero vectors: 0/260 for Gemma, 0/260 for Gemma-IT, 0/280 for Llama), and all intervention score deltas are exactly 0.000 (Appendix Table~\ref{tab:dirpos-portability}). This is expected in completion format because paired contexts are identical up to $p$, so the train-split stereotype/anti hidden-state difference at $p$ is zero by construction.
+
+\subsection{Ranking Construction}
+We use DLA and attribution-patching (AtP) rankings. In single-component causal adjudication and multi-site analyses, candidate sets come from three ranking families (union, DLA-only, AtP-only), and promoter-only filtering means retaining components whose estimated direction is debiasing within the selected family. In Method C we evaluate two explicit configuration families: (i) Llama AtP-prioritized promoter sets, and (ii) Gemma/Gemma-IT promoters-only gender/profession sweeps over $n\in\{8,12,16,20\}$.
+
+\subsection{Protocol Reference}
+For compactness in the main narrative, detailed protocol settings and experiment metadata are provided in the appendix. A short experiment glossary is provided in Appendix Table~\ref{tab:experiment-glossary}.
+
+\subsection{Statistics and Decision Rules}
+Bootstrap CIs are pair-level resampling of within-condition means (500 resamples in main intervention test; 1000 in multi-site robustness and transfer analyses). For paired deltas, we use:
+\begin{itemize}[leftmargin=*]
+  \item two-sided paired sign test on score differences,
+  \item two-sided Wilcoxon signed-rank on margin differences,
+  \item Benjamini--Hochberg FDR correction within each experiment table.
+\end{itemize}
+
+\paragraph{Inference convention.}
+Paired-test BH-FDR $q$-values are the inferential authority throughout. Bootstrap CIs are descriptive location summaries; CI exclusion of zero can coexist with non-significant paired tests when differences are skewed or heavy-tailed.
+
+A condition counts as strong debiasing only if (i) $\Delta$score $<0$ with CI excluding 0, (ii) $\Delta$margin is directionally consistent, and (iii) effect is robust under transfer stress tests.
+
+\subsection{Determinism and Run Configuration}
+All results here are from fixed records with deterministic splits and fixed seeds. Core runs use max length 256, bfloat16, and forward-pass scoring; effective per-axis $n$ is reported in every output row.
+
+\section{Main Causal Result: Writing Is Easier Than Erasing}
+\label{sec:main-result}
+
+This is the core causal test in the paper: if local directions are truly removable bottlenecks, removal should be comparably effective to injection under matched operators.
+
+\paragraph{Cross-position design.}
+In completion format, direction extraction and intervention operate at different positions: $d_{\ell,a}$ is estimated at trait positions $t_i$ (where stereotype/anti content appears), while causal interventions are applied at prediction position $p_i$ (where the decision logit is evaluated). Appendix Table~\ref{tab:dirpos-portability} confirms that prediction-position directions are zero by construction in this format. The audit therefore tests whether trait-position directions are causally effective and removable when applied cross-position at $p$, not whether a stereotype direction is natively represented and editable at the decision point itself.
+
+The direction-construction step confirms detectability but not removability: mean probe AUC is 0.752 (Gemma), 0.762 (Gemma-IT), 0.767 (Llama), while mean cross-dataset direction cosine is near zero (-0.007, -0.020, -0.052 respectively). Here AUC is from a linear probe trained on train-split paired hidden states (stereotype vs anti label) at each layer and summarized by each axis's best layer.
+The direct cross-position portability rerun (prediction-position extraction) yields zero-norm directions and zero intervention deltas in all three models (Appendix Table~\ref{tab:dirpos-portability}), reinforcing that in completion format the usable causal direction must be estimated from later trait-token states rather than from identical pre-decision contexts.
+
+Table~\ref{tab:main-intervention-score} reports the compact primary score outcomes (main intervention test). The canonical asymmetry test is the matched-operator contrast test (Table~\ref{tab:matched-contrast}; full 2$\times$2 anti-base rows are in Appendix Table~\ref{tab:matched-matrix}), because it applies matched prediction-position operators for both injection and ablation. Injection score effects are significant in all three models; ablation score effects are weak and statistically consistent with zero in all three. Margin ablation is significant for Gemma-2-2B only (Appendix Table~\ref{tab:main-intervention-score-margin}). Injection-specificity controls (Appendix Table~\ref{tab:injection-controls}) show that true-vs-shuffled injection contrast is significant in Gemma-IT and Llama, and trend-level in Gemma. Figure~\ref{fig:asymmetry} visualizes the model-level asymmetry summary across all seven models.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}l p{0.21\columnwidth} c p{0.21\columnwidth} c@{}}
+\toprule
+Model & Ablation $\Delta$score [95\% CI] & $q$ & Injection $\Delta$score [95\% CI] & $q$ \\
+\midrule
+Gemma-2-2B & $-$0.025 [$-$0.083, 0.025] & 0.549 & +0.092 [0.042, 0.158] & 0.0205 \\
+Gemma-2-2B-IT & +0.017 [$-$0.025, 0.067] & 1.000 & +0.092 [0.042, 0.150] & 0.0059 \\
+Llama-3.2-3B & $-$0.017 [$-$0.063, 0.033] & 0.727 & +0.292 [0.192, 0.408] & 0.000004 \\
+\bottomrule
+\end{tabular}
+\caption{Main intervention score outcomes ($n=120$ pairs/model). Full baseline$\rightarrow$post rows are reported in Appendix Table~\ref{tab:main-intervention-score-full}. This table uses full-sequence residual injection and prediction-position ablation; the clean matched write-vs-erase test is Table~\ref{tab:matched-contrast}.}
+\label{tab:main-intervention-score}
+\end{table}
+
+\begin{table}[tbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}l p{0.48\columnwidth} c@{}}
+\toprule
+Model & Inject $-$ Remove $\Delta$score [95\% CI] & $q$ \\
+\midrule
+Gemma-2-2B & +0.100 [0.042, 0.167] & 0.0075 \\
+Gemma-2-2B-IT & +0.050 [-0.008, 0.108] & 0.180 \\
+Llama-3.2-3B & +0.250 [0.150, 0.367] & 0.000009 \\
+\bottomrule
+\end{tabular}
+\caption{Canonical matched-operator asymmetry contrast from the matched-operator contrast test, using paired per-item contrasts $c_i=\delta_i^{\text{inject}}-\delta_i^{\text{remove}}$ and BH-FDR across models.}
+\label{tab:matched-contrast}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.98\columnwidth]{build/fig_asymmetry_contrast.png}
+\caption{Headline asymmetry summary across seven tested models under matched operators. Top: score contrast (inject$-$remove). Bottom: margin contrast (inject$-$remove). Blue points denote $q<0.05$; gray points denote $q\ge0.05$. Error bars are 95\% CIs.}
+\label{fig:asymmetry}
+\end{figure}
+
+Because baseline score is below chance for Llama (0.417) and near chance for Gemma-IT (0.483), we interpret injection as \emph{increasing stereotype preference} rather than assuming initially stereotypical behavior. Notably, Llama's injection $\Delta$margin of $+3.267$ [2.384, 4.017] (Appendix Table~\ref{tab:main-intervention-score-margin}) is the single largest effect in the paper and constitutes the primary mechanistic signature of the write-but-not-erase asymmetry: the stereotype direction is strongly writable even in a model where ablation produces no detectable behavioral change.
+
+This avoids unstable ratio statistics with near-zero denominators: for Llama, the correct statement is \emph{large injection effect + null ablation effect}, not an inject/remove ratio.
+
+To address base-condition concerns, matched-operator contrast test also evaluates the full 2$\times$2 matrix (remove/inject $\times$ stereotype/anti base text). Table~\ref{tab:matched-matrix} reports the anti-base rows; stereo-base rows are numerically matched within rounding.
+
+Row-level tests in matched-operator contrast test are consistent with Table~\ref{tab:matched-contrast}: remove-on-anti is non-significant after FDR in all three models, while inject-on-anti is significant for Gemma and Llama but not Gemma-IT. In the core three-model set, matched-operator score asymmetry is therefore confirmed in 2/3 models.
+
+In the four-model extension, score asymmetry is significant in 3/4 added models and margin asymmetry is significant in 4/4 added models (Appendix Table~\ref{tab:ext4-summary}). Combined with the core set, this yields a 5/7 score-level majority pattern and 7/7 margin-level asymmetry. Model selection and protocols for the extension were fixed before outcomes were read; the core-vs-extension split is retained only for inferential clarity.
+
+\paragraph{Protocol-specific injectability.}
+We treat the matched-operator contrast test as the canonical asymmetry test because it uses matched prediction-position operators for both injection and ablation. The main intervention test uses full-sequence residual injection, whereas the matched-operator contrast test uses prediction-position-only injection for causal-local symmetry testing. Under autoregressive masking, injections at positions $q>p$ cannot affect the decision logit at $p$; therefore, full-sequence injection differs from prediction-position injection only via edits at $q\le p$. This operator difference explains why Gemma-IT injection delta is +0.092 in the main intervention test but +0.067 in the matched-operator contrast test; the two values are not expected to match exactly.
+
+Gemma-IT also has a lower baseline stereotype score than Gemma (0.483 vs 0.533), but similar injectability across the two intervention protocols. This weakens a pure floor-effect explanation for IT ablation resistance: the direction remains behaviorally writable even when removal is weak.
+
+\paragraph{Score--margin dissociation: mechanistic movement vs decision flips.}
+Inferential conclusions in this paper follow paired-test $q$-values; bootstrap CIs in the same rows are descriptive mean-location summaries and can disagree with rank-based significance under skew/heavy tails.
+
+Gemma shows the clearest dissociation: ablation shifts margin significantly while score remains non-significant (Appendix Table~\ref{tab:main-intervention-score-margin}). Llama shows the same qualitative pattern with smaller, non-significant margin movement and only 2/120 boundary crossings. Taken together, direction ablation can move confidence geometry without reliably flipping behavioral decisions at this intervention scale. A model-wise margin-shift visualization is provided in Appendix Figure~\ref{fig:margin-shift-models}.
+
+\paragraph{Controls.}
+Random same-rank and norm-matched random controls are usually small and non-significant. Label-permutation is explicitly \emph{confounded} in this setup: StereoSet anti-stereotype completions are constructed semantic contrasts (not random alternatives), so a permuted label direction can still recover structured anti-direction/syntactic signal. Norm-random and shuffled-axis controls, in contrast, are unstructured perturbation controls and therefore remain valid for injection-specificity testing. We therefore do not use label-permutation as a specificity validator.
+
+\paragraph{Injection specificity controls.}
+Because directions are extracted from paired contrasts, we additionally test whether injection effects exceed matched control injections. Injection-specificity controls use prediction-position-only injection. Appendix Table~\ref{tab:injection-controls} compares true direction injection against norm-random and shuffled-axis injections at prediction position. True injection exceeds norm-random injection in all three models (score contrasts significant after FDR), and exceeds shuffled-axis injection in Gemma-IT and Llama (Gemma trend only). This reduces the risk that the injection result is merely ``any perturbation of similar norm.''
+
+\paragraph{Interpretation under cross-position design.}
+Injection here measures whether directions extracted at trait positions can influence decision-point computations when applied at prediction position. Injection-specificity controls indicate this influence is partly axis-specific (confirmed in Gemma-IT and Llama; trend-level in Gemma), not merely a nonspecific activation perturbation. We therefore interpret injection as evidence of cross-position causal sensitivity to stereotype directions, not as direct evidence that the same direction is natively active at $p$ before trait content is read.
+
+\FloatBarrier
+\section{Why Erasing Is Brittle}
+\label{sec:brittle}
+
+This section asks whether attribution rankings (and their signs) identify causal edit direction. \emph{The sign-reliability audit is a post-hoc validity extension} and audits this directly against observed single-component causal deltas.
+
+Model-level sign-audit results are summarized in Table~\ref{tab:sign-audit-main}: Gemma-IT shows below-chance DLA sign agreement ($13/46$, 28.3\%, $q=0.0136$), while Gemma and Llama are near chance.
+
+\begin{table}[tbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}l p{0.23\columnwidth} p{0.23\columnwidth}@{}}
+\toprule
+Model & DLA sign agreement, $k/N$, $q$ & AtP sign agreement, $k/N$, $q$ \\
+\midrule
+Gemma-2-2B & 41.4\%, 29/70, 0.282 & 42.9\%, 15/35, 1.000 \\
+Gemma-2-2B-IT & 28.3\%, 13/46, 0.0136 & 44.4\%, 12/27, 1.000 \\
+Llama-3.2-3B & 46.6\%, 27/58, 0.694 & 50.0\%, 26/52, 1.000 \\
+\bottomrule
+\end{tabular}
+\caption{Model-level attribution-sign reliability audit against chance (50\%). Wilson CIs are reported in Appendix Table~\ref{tab:sign-audit-axis}.}
+\label{tab:sign-audit-main}
+\end{table}
+
+Audited components are taken from the single-component causal adjudication pool after filtering for valid signed attribution values and valid causal deltas. The main calibration result is that sign is not uniformly reliable as an intervention-direction label: Gemma-IT is significantly below chance at model level, while Gemma and Llama are near chance. Across all seven audited models (core + extension), patterns span anti-aligned, near-random, and aligned regimes, indicating model-regime dependence rather than a universal sign property. Per-axis detail and mechanism-candidate discussion are reported in Appendix Table~\ref{tab:sign-audit-axis} and Appendix Figure~\ref{fig:sign-forest}.
+
+\FloatBarrier
+\subsection{Multi-Site Editing and Causal Contamination}
+
+The multi-site robustness stress test evaluates whether multi-site ablation resolves single-site failures. It does not: outcomes are inconsistent and strongly axis-dependent. We therefore use ``multi-site robustness stress test'' language rather than claiming a uniquely identified Hydra/self-repair mechanism. \emph{The suppressor-contamination audit below is a post-hoc diagnostic.}
+
+For Llama in the AtP-prioritized setting, profession at $n=8$ shows a positive point estimate ($\Delta$score $=+0.150$, $q=1.0$), while most rows are near-zero; Gemma and Gemma-IT gender/profession sweeps are likewise resistant across site counts (Appendix Table~\ref{tab:multisite-heterogeneity}). This motivates joint score+margin reporting because confidence can move without decision flips.
+
+The suppressor-contamination audit then quantifies causal contamination directly from observed single-component deltas (not attribution sign): top-8 union sets contain 13.8\% (Gemma), 18.8\% (Gemma-IT), and 26.3\% (Llama) suppressors. In practical terms, about 2 of 8 ablated sites can oppose the intended direction in Llama, which is sufficient to reduce or reverse net gain when effect magnitudes are comparable.
+
+\FloatBarrier
+\section{Transfer Stress Test}
+\label{sec:transfer}
+
+\textbf{Scope note.} Cross-source per-axis sample sizes are small ($n=2$--13), so this section is powered to reject only large transfer effects.
+
+Transfer is central to deployment claims. The transfer matrix test runs a 2$\times$2 matrix (within-source and cross-source). Full condition-level matrix rows are in Appendix Table~\ref{tab:transfer-matrix}, and per-axis rows are in Appendix Table~\ref{tab:transfer-axis}. At model level, the strongest within-source trend is Gemma CrowS$\rightarrow$CrowS ($\Delta$score $=-0.143$, $q=0.0768$), and the largest cross-source absolute effect is Gemma-IT StereoSet$\rightarrow$CrowS ($+0.385$, $q=0.250$); neither is FDR-significant.
+
+No cross-source axis row survives FDR in any model, and cross-source axis-level $n$ is often low (typically 4--11, Appendix Table~\ref{tab:transfer-axis}). At this $n$, transfer matrix test can exclude only large transfer effects (roughly $|\Delta|\gtrsim 0.3$--$0.5$) and cannot adjudicate moderate effects near the main intervention test injection scale (+0.092 to +0.292). We therefore report \emph{no large transfer detected} and treat transfer matrix test as a ceiling-bound stress test rather than evidence against moderate-effect transfer.
+
+The strongest within-source debiasing trend is Gemma CrowS$\rightarrow$CrowS ($\Delta$score $=-0.143$, $q=0.0768$). Axis-level decomposition for this condition is mixed-sign rather than single-axis dominated (largest negative rows include sexual\_orientation, age, and socioeconomic, partially offset by positive gender/race rows in the same condition-level decomposition). We treat this as a partial exception that is informative but not confirmatory: it is not FDR-significant at 0.05, does not replicate as a cross-source effect, and does not overturn the broader transfer-null headline.
+
+Gemma-IT StereoSet$\rightarrow$CrowS has the largest cross-source point estimate ($+0.385$ [0.154, 0.692], $q=0.250$) and is in the wrong direction (backfire), but remains non-significant after FDR with wide low-$n$ uncertainty.
+
+StereoSet and CrowS-Pairs also differ structurally at evaluation time, so the present setup cannot isolate mechanism non-transfer from format mismatch without a format-controlled replication. Even with that limitation, three signals converge on the same operational recommendation: benchmark geometry mismatch (near-zero cross-dataset cosines), structural format mismatch, and no detected large transfer. Together they justify transfer validation as a minimum bar for deployment-facing claims.
+
+\FloatBarrier
+\paragraph{Additional diagnostic geometry.}
+Secondary geometric diagnostics are reported in Appendix Section~\ref{sec:secondary}; they support interpretation (for example, smoother margin dose-response and middle-layer accessibility bands) but do not alter the main causal claims.
+
+\section{Synthesis and Practical Validation Standard}
+\label{sec:synthesis}
+
+Across methods, the same pattern appears repeatedly: local directions are often writable without being cleanly erasable, and apparent localization does not reliably translate into robust debiasing.
+\begin{itemize}[leftmargin=*]
+  \item In the core three-model set, matched-operator score asymmetry is significant in Gemma-2-2B and Llama-3.2-3B, while Gemma-2-2B-IT is directionally aligned but non-significant ($q=0.180$); extension runs broaden this to a 5/7 score-level majority and 7/7 margin-level asymmetry.
+  \item Sign reliability is model-dependent: Gemma-2-2B-IT is below chance at model level, while Gemma-2-2B and Llama-3.2-3B are near chance.
+  \item Multi-site sets are causally mixed: suppressor-contamination rates of 13.8--26.3\% make sign-blind top-$k$ editing brittle even when components look highly ranked.
+  \item Transfer remains the weakest point for deployment claims: no large cross-source effect is detected, and current per-axis sample sizes cannot resolve moderate transfer magnitudes.
+\end{itemize}
+
+Mechanistically, pathway diagnostics remain non-identifying: residual-stream projections are stronger than component-isolated projections, but this constrains only coarse alternatives and does not isolate a unique circuit mechanism (Appendix Table~\ref{tab:pathway-decomp}; Appendix Table~\ref{tab:alt-mech}).
+
+\paragraph{Practical validation standard.}
+For deployment-facing local-edit claims, this audit supports a four-step validation workflow:
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Causal efficacy check}: direct inject-minus-remove contrast under matched operators.
+  \item \textbf{Reliability screen}: attribution-sign audit before sign-driven editing.
+  \item \textbf{Contamination screen}: suppressor-rate audit in candidate intervention sets.
+  \item \textbf{Transfer check}: cross-source validation before generalization claims.
+\end{enumerate}
+
+\section{Conclusion}
+This audit answers the central question directly: under matched local interventions, stereotype preference is more reliably writable than erasable. Across seven tested models, the direct inject-minus-remove score contrast is significant in 5/7, while the corresponding margin contrast is significant in 7/7.
+
+The key implication is about \emph{inference quality}, not about introducing harmful behavior. Injection is used as a diagnostic control to verify causal leverage of a candidate direction; ablation tests whether that same direction is actually a removable bottleneck. Our results show these are often not symmetric. In practical terms, ``we found a stereotype-linked direction'' does not by itself justify ``we removed the behavior''.
+
+This changes how localization evidence should be used in deployment-facing claims. Local editing is a control tool, but not a debiasing guarantee unless it passes additional causal checks. The operational recommendation is concrete: a local-edit debiasing claim should pass four checks before deployment use---causal asymmetry, sign reliability, suppressor contamination, and transfer stress testing.
+
+\section{Limitations}
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Model scope and scale.} The audit covers seven open-weight decoder models (roughly 2B--7B). Results may differ in larger or closed-weight systems and in families not tested here.
+  \item \textbf{Benchmark and format scope.} Evaluation is completion-style, which enforces cross-position intervention at the decision token; same-position conclusions in alternative formats are not established.
+  \item \textbf{Transfer power limits.} Cross-source axis-level rows are low-$n$, so current transfer tests can rule out only unusually large effects and cannot resolve moderate transfer magnitudes.
+  \item \textbf{Mechanism and method scope.} Pathway diagnostics are coarse (non-identifying at circuit resolution), and the study evaluates local editing only rather than head-to-head global mitigation methods.
+\end{enumerate}
