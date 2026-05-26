@@ -48,6 +48,12 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Explicit Experiment 02 run directory. If omitted, latest completed run is used.",
     )
+    parser.add_argument(
+        "--split-scope",
+        choices=["all", "train", "test"],
+        default="all",
+        help="Which Exp01 split partition to sample from before attribution ranking/validation.",
+    )
     return parser.parse_args()
 
 
@@ -143,6 +149,12 @@ def main() -> None:
             )
         )
         aligned_pairs = _load_aligned_pairs(exp1_dir / "artifacts" / "aligned_pairs.jsonl")
+        split_path = exp1_dir / "artifacts" / "train_test_split.json"
+        if args.split_scope != "all" and split_path.exists():
+            split = json.loads(split_path.read_text(encoding="utf-8"))
+            key = "train_indices" if args.split_scope == "train" else "test_indices"
+            wanted = {int(i) for i in split.get(key, [])}
+            aligned_pairs = [p for i, p in enumerate(aligned_pairs) if i in wanted]
         aligned_pairs = stratified_axis_sample(aligned_pairs, limit=args.pairs_limit, seed=args.seed)
 
         exp2_scores_path = exp2_dir / "tables" / "component_dla_scores.csv"
@@ -160,6 +172,7 @@ def main() -> None:
             {
                 "exp1_run_dir": str(exp1_dir),
                 "exp2_run_dir": str(exp2_dir),
+                "split_scope": args.split_scope,
                 "pairs_selected": len(aligned_pairs),
                 "selected_components_per_axis": {
                     axis: [{"type": ctype, "layer": layer} for (ctype, layer) in comps]

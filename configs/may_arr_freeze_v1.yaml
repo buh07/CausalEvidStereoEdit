@@ -1,0 +1,92 @@
+run_tag_prefix: may_arr_fixpack
+freeze_name: may_arr_freeze_v1
+
+core_models:
+  - key: gemma2b
+    label: Gemma-2-2B
+    model: google/gemma-2-2b
+    gpu: 0
+  - key: gemma2bit
+    label: Gemma-2-2B-IT
+    model: google/gemma-2-2b-it
+    gpu: 1
+  - key: llama3b
+    label: Llama-3.2-3B
+    model: meta-llama/Llama-3.2-3B
+    gpu: 2
+
+global:
+  device: cuda:0
+  torch_dtype: bfloat16
+  max_length: 256
+  heldout_pairs: 120
+  top_k: 20
+  bootstrap_n: 1000
+  eval_sources: stereoset_intrasentence,crows_pairs
+
+frozen_seeds:
+  canonical: 11
+  seed_aggregate:
+    - 11
+    - 29
+    - 47
+
+exp01:
+  mixed:
+    pairs_limit: 600
+    per_source_limit: 2500
+    direction_position: trait
+  stereoset_only:
+    pairs_limit: 450
+    per_source_limit: 2500
+  crows_only:
+    pairs_limit: 500
+    per_source_limit: 2500
+
+exp02:
+  strict:
+    split_scope: train
+    pairs_limit: 300
+    top_components_source: mixed
+  transfer_source_specific:
+    split_scope: train
+    pairs_limit_stereoset: 300
+    pairs_limit_crows: 350
+    top_components_source: mixed
+
+exp03:
+  strict:
+    split_scope: train
+    pairs_limit: 220
+    validation_pairs_per_component: 8
+
+exp09:
+  strict:
+    ranking_source: union
+    promoters_only: true
+    truncate_shuffle: true
+
+exp15:
+  promoters_only: false
+
+exp21:
+  sesoi: 0.10
+  alpha: 0.05
+  target_power: 0.80
+
+exp26:
+  train_pairs: 360
+
+exp27:
+  max_span_len: 3
+
+exp28:
+  eval_scope: all
+  max_span_len: 3
+  span_strata: all,2,3
+  sesoi: 0.10
+  alpha: 0.05
+  target_power: 0.80
+
+exp29:
+  mitigation_prefix: "Please continue the sentence in a respectful, non-stereotypical way: "

@@ -9,6 +9,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -238,6 +239,36 @@ def main() -> None:
         bundle = load_model_bundle(model_name=args.model, device=args.device, torch_dtype=args.torch_dtype)
         aligned_pairs, align_stats = filter_aligned_pairs(pairs, tokenizer=bundle.tokenizer)
         aligned_pairs = stratified_axis_sample(aligned_pairs, limit=args.pairs_limit, seed=args.seed)
+
+        # Retention accounting table for scope/transparency reporting.
+        retained_rows = [
+            {"source": item.pair.source, "axis": item.pair.axis, "retained_count": 1}
+            for item in aligned_pairs
+        ]
+        retained_df = (
+            pd.DataFrame(retained_rows)
+            .groupby(["source", "axis"], dropna=False)["retained_count"]
+            .sum()
+            .reset_index()
+            if retained_rows
+            else pd.DataFrame(columns=["source", "axis", "retained_count"])
+        )
+        raw_df = pair_summary.rename(columns={"count": "raw_count"})
+        retention_df = raw_df.merge(retained_df, on=["source", "axis"], how="left")
+        retention_df["retained_count"] = retention_df["retained_count"].fillna(0).astype(int)
+        retention_df["dropped_count"] = retention_df["raw_count"] - retention_df["retained_count"]
+        retention_df["retention_rate"] = retention_df.apply(
+            lambda r: float(r["retained_count"]) / float(r["raw_count"]) if float(r["raw_count"]) > 0 else 0.0,
+            axis=1,
+        )
+        retention_df = retention_df.sort_values(["source", "axis"]).reset_index(drop=True)
+        retention_path = ctx.tables_dir / "alignment_retention_by_source_axis.csv"
+        retention_df.to_csv(retention_path, index=False)
+        ctx.register_artifact(
+            retention_path,
+            artifact_type="table",
+            description="Raw/retained/dropped counts and retention rate by source and axis.",
+        )
 
         aligned_path = ctx.artifacts_dir / "aligned_pairs.jsonl"
         _save_aligned_pairs(aligned_path, aligned_pairs)

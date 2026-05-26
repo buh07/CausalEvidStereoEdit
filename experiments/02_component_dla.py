@@ -54,6 +54,12 @@ def parse_args() -> argparse.Namespace:
         default="block",
         help="Which component granularity to use for top_components.csv.",
     )
+    parser.add_argument(
+        "--split-scope",
+        choices=["all", "train", "test"],
+        default="all",
+        help="Which Exp01 split partition to sample from before DLA ranking.",
+    )
     parser.add_argument("--seed", type=int, default=11)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -185,8 +191,14 @@ def main() -> None:
         )
         directions_path = exp1_run_dir / "artifacts" / "directions_layerwise.npz"
         aligned_path = exp1_run_dir / "artifacts" / "aligned_pairs.jsonl"
+        split_path = exp1_run_dir / "artifacts" / "train_test_split.json"
         directions = load_directions_npz(directions_path)
         aligned_pairs = _load_aligned_pairs(aligned_path)
+        if args.split_scope != "all" and split_path.exists():
+            split = json.loads(split_path.read_text(encoding="utf-8"))
+            key = "train_indices" if args.split_scope == "train" else "test_indices"
+            wanted = {int(i) for i in split.get(key, [])}
+            aligned_pairs = [p for i, p in enumerate(aligned_pairs) if i in wanted]
         aligned_pairs = stratified_axis_sample(aligned_pairs, limit=args.pairs_limit, seed=args.seed)
 
         run_ref_path = ctx.artifacts_dir / "exp1_dependency.json"
@@ -196,6 +208,7 @@ def main() -> None:
                 "exp1_run_dir": str(exp1_run_dir),
                 "directions_path": str(directions_path),
                 "aligned_pairs_path": str(aligned_path),
+                "split_scope": args.split_scope,
                 "pairs_selected": len(aligned_pairs),
             },
         )

@@ -46,7 +46,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--exp1-run-dir",
         default="",
-        help="Explicit Experiment 01 run directory. If omitted, latest completed model-matched run is used.",
+        help=(
+            "Legacy shortcut: explicit Experiment 01 run directory used for both evaluation pairs "
+            "and direction vectors. Prefer --eval-exp1-run-dir/--directions-exp1-run-dir."
+        ),
+    )
+    parser.add_argument(
+        "--eval-exp1-run-dir",
+        default="",
+        help=(
+            "Experiment 01 run directory supplying aligned pairs and train/test split "
+            "for heldout evaluation."
+        ),
+    )
+    parser.add_argument(
+        "--directions-exp1-run-dir",
+        default="",
+        help="Experiment 01 run directory supplying directions_layerwise.npz.",
+    )
+    parser.add_argument(
+        "--emit-pair-level",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Emit per-pair condition deltas and primary contrasts for downstream diagnostics.",
+    )
+    parser.add_argument(
+        "--emit-occupancy",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Emit prediction-position direction-occupancy summaries (h·d) with matched "
+            "random-direction baselines for each heldout pair."
+        ),
     )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -208,39 +239,75 @@ def _margin_for_text(
     )
 
 
+def _prediction_hidden_states(
+    *,
+    bundle,
+    text: str,
+    pair: AlignedPair,
+    max_length: int,
+) -> dict[int, torch.Tensor]:
+    encoded = encode_text(bundle.tokenizer, text, bundle.device, max_length)
+    cap = forward_with_component_capture(
+        model=bundle.model,
+        encoded_inputs=encoded,
+        output_hidden_states=True,
+        capture_attention=False,
+        capture_mlp=False,
+    )
+    pos = pair.prediction_position
+    if not cap.hidden_states:
+        return {}
+    out: dict[int, torch.Tensor] = {}
+    for layer_idx, hs in enumerate(cap.hidden_states[1:], start=1):
+        if pos < hs.shape[1]:
+            out[layer_idx] = hs[0, pos, :].detach().float()
+    return out
+
+
 def main() -> None:
     args = parse_args()
     ctx = start_run("16", parameters=vars(args), project_root=PROJECT_ROOT)
     try:
-        exp1_dir = (
-            Path(args.exp1_run_dir)
-            if args.exp1_run_dir
-            else _latest_run_dir(
+        # Resolution order:
+        # 1) explicit eval/direction dirs, 2) legacy --exp1-run-dir, 3) latest model-matched Exp01.
+        if args.eval_exp1_run_dir:
+            eval_exp1_dir = Path(args.eval_exp1_run_dir)
+        elif args.exp1_run_dir:
+            eval_exp1_dir = Path(args.exp1_run_dir)
+        else:
+            eval_exp1_dir = _latest_run_dir(
                 "01_layerwise_probing",
                 required_relpaths=[
                     "artifacts/aligned_pairs.jsonl",
                     "artifacts/train_test_split.json",
-                    "artifacts/directions_layerwise.npz",
                 ],
                 model_name=args.model,
             )
-        )
-        aligned_pairs = _load_aligned_pairs(exp1_dir / "artifacts" / "aligned_pairs.jsonl")
-        split_info = json.loads((exp1_dir / "artifacts" / "train_test_split.json").read_text(encoding="utf-8"))
+        if args.directions_exp1_run_dir:
+            directions_exp1_dir = Path(args.directions_exp1_run_dir)
+        elif args.exp1_run_dir:
+            directions_exp1_dir = Path(args.exp1_run_dir)
+        else:
+            directions_exp1_dir = eval_exp1_dir
+
+        aligned_pairs = _load_aligned_pairs(eval_exp1_dir / "artifacts" / "aligned_pairs.jsonl")
+        split_info = json.loads((eval_exp1_dir / "artifacts" / "train_test_split.json").read_text(encoding="utf-8"))
         test_indices = split_info.get("test_indices", [])
         heldout = [aligned_pairs[i] for i in test_indices if 0 <= i < len(aligned_pairs)]
         if args.heldout_pairs > 0:
             heldout = heldout[: args.heldout_pairs]
-        directions = load_directions_npz(exp1_dir / "artifacts" / "directions_layerwise.npz")
+        directions = load_directions_npz(directions_exp1_dir / "artifacts" / "directions_layerwise.npz")
 
         refs_path = ctx.artifacts_dir / "dependencies.json"
         write_json(
             refs_path,
             {
-                "exp1_run_dir": str(exp1_dir),
+                "eval_exp1_run_dir": str(eval_exp1_dir),
+                "directions_exp1_run_dir": str(directions_exp1_dir),
                 "heldout_pairs": len(heldout),
                 "directions_loaded": len(directions),
                 "position_only": args.position_only,
+                "emit_occupancy": bool(args.emit_occupancy),
             },
         )
         ctx.register_artifact(refs_path, artifact_type="artifact", description="Dependency references.")
@@ -489,6 +556,200 @@ def main() -> None:
             description="Paired asymmetry contrasts (inject minus remove).",
         )
 
+        if args.emit_pair_level:
+            pair_rows: list[dict[str, Any]] = []
+            cond_score_names = sorted(condition_pair_diffs_score.keys())
+            cond_margin_names = sorted(condition_pair_diffs_margin.keys())
+            for pair in heldout:
+                pair_id = pair.pair.pair_id
+                row: dict[str, Any] = {
+                    "pair_id": pair_id,
+                    "source": pair.pair.source,
+                    "axis": pair.pair.axis,
+                    "baseline_margin_stereo": _rounded(baseline_stereo.get(pair_id)),
+                    "baseline_margin_anti": _rounded(baseline_anti.get(pair_id)),
+                }
+                for cond in cond_score_names:
+                    row[f"{cond}_score_delta"] = _rounded(condition_pair_diffs_score.get(cond, {}).get(pair_id))
+                for cond in cond_margin_names:
+                    row[f"{cond}_margin_delta"] = _rounded(condition_pair_diffs_margin.get(cond, {}).get(pair_id))
+
+                inj_s = condition_pair_diffs_score.get("inject_on_anti", {}).get(pair_id)
+                rem_s = condition_pair_diffs_score.get("remove_on_stereo", {}).get(pair_id)
+                inj_m = condition_pair_diffs_margin.get("inject_on_anti", {}).get(pair_id)
+                rem_m = condition_pair_diffs_margin.get("remove_on_stereo", {}).get(pair_id)
+                row["primary_score_contrast"] = _rounded(None if inj_s is None or rem_s is None else float(inj_s - rem_s))
+                row["primary_margin_contrast"] = _rounded(None if inj_m is None or rem_m is None else float(inj_m - rem_m))
+                pair_rows.append(row)
+
+            pair_fields = [
+                "pair_id",
+                "source",
+                "axis",
+                "baseline_margin_stereo",
+                "baseline_margin_anti",
+            ]
+            pair_fields += [f"{c}_score_delta" for c in cond_score_names]
+            pair_fields += [f"{c}_margin_delta" for c in cond_margin_names]
+            pair_fields += ["primary_score_contrast", "primary_margin_contrast"]
+
+            pair_path = ctx.tables_dir / "asymmetry_pair_deltas.csv"
+            write_csv(pair_path, pair_rows, fieldnames=pair_fields)
+            ctx.register_artifact(
+                pair_path,
+                artifact_type="table",
+                description="Per-pair condition deltas and primary inject-minus-remove contrasts.",
+            )
+
+        occupancy_pair_rows = 0
+        occupancy_layer_rows = 0
+        if args.emit_occupancy:
+            rng_occ = np.random.default_rng(args.seed + 9107)
+            dir_unit: dict[tuple[str, int], torch.Tensor] = {}
+            rand_unit: dict[tuple[str, int], torch.Tensor] = {}
+            for key, d_np in directions.items():
+                d_vec = torch.tensor(d_np, device=bundle.device, dtype=torch.float32)
+                d_norm = float(torch.linalg.norm(d_vec).item())
+                if not np.isfinite(d_norm) or d_norm <= 0.0:
+                    continue
+                d_hat = d_vec / d_norm
+                dir_unit[key] = d_hat
+                r = torch.tensor(rng_occ.standard_normal(d_vec.shape[0]), device=bundle.device, dtype=torch.float32)
+                r_norm = float(torch.linalg.norm(r).item())
+                if not np.isfinite(r_norm) or r_norm <= 0.0:
+                    continue
+                rand_unit[key] = r / r_norm
+
+            occ_pair_rows: list[dict[str, Any]] = []
+            occ_layer_rows: list[dict[str, Any]] = []
+            for pair in heldout:
+                axis = pair.pair.axis
+                pair_id = pair.pair.pair_id
+                base_variants = [
+                    ("stereo", pair.pair.stereotype_text),
+                    ("anti", pair.pair.antistereotype_text),
+                ]
+                for base_kind, text in base_variants:
+                    hs_by_layer = _prediction_hidden_states(
+                        bundle=bundle,
+                        text=text,
+                        pair=pair,
+                        max_length=args.max_length,
+                    )
+                    true_proj_vals: list[float] = []
+                    rand_proj_vals: list[float] = []
+                    for (dir_axis, layer), d_hat in dir_unit.items():
+                        if dir_axis != axis:
+                            continue
+                        h = hs_by_layer.get(layer)
+                        if h is None:
+                            continue
+                        r_hat = rand_unit.get((dir_axis, layer))
+                        if r_hat is None:
+                            continue
+                        true_proj = float(torch.dot(h.to(bundle.device), d_hat).item())
+                        rand_proj = float(torch.dot(h.to(bundle.device), r_hat).item())
+                        true_proj_vals.append(true_proj)
+                        rand_proj_vals.append(rand_proj)
+                        occ_layer_rows.append(
+                            {
+                                "pair_id": pair_id,
+                                "source": pair.pair.source,
+                                "axis": axis,
+                                "base_kind": base_kind,
+                                "layer": int(layer),
+                                "true_proj": _rounded(true_proj),
+                                "abs_true_proj": _rounded(abs(true_proj)),
+                                "random_proj": _rounded(rand_proj),
+                                "abs_random_proj": _rounded(abs(rand_proj)),
+                            }
+                        )
+
+                    if not true_proj_vals:
+                        continue
+                    true_arr = np.array(true_proj_vals, dtype=float)
+                    rand_arr = np.array(rand_proj_vals, dtype=float)
+                    remove_score = condition_pair_diffs_score.get("remove_on_stereo", {}).get(pair_id, float("nan"))
+                    remove_margin = condition_pair_diffs_margin.get("remove_on_stereo", {}).get(pair_id, float("nan"))
+                    primary_score = float("nan")
+                    primary_margin = float("nan")
+                    inj_s = condition_pair_diffs_score.get("inject_on_anti", {}).get(pair_id)
+                    rem_s = condition_pair_diffs_score.get("remove_on_stereo", {}).get(pair_id)
+                    inj_m = condition_pair_diffs_margin.get("inject_on_anti", {}).get(pair_id)
+                    rem_m = condition_pair_diffs_margin.get("remove_on_stereo", {}).get(pair_id)
+                    if inj_s is not None and rem_s is not None:
+                        primary_score = float(inj_s - rem_s)
+                    if inj_m is not None and rem_m is not None:
+                        primary_margin = float(inj_m - rem_m)
+                    occ_pair_rows.append(
+                        {
+                            "pair_id": pair_id,
+                            "source": pair.pair.source,
+                            "axis": axis,
+                            "base_kind": base_kind,
+                            "n_layers_used": int(true_arr.size),
+                            "mean_true_proj": _rounded(float(np.mean(true_arr))),
+                            "mean_abs_true_proj": _rounded(float(np.mean(np.abs(true_arr)))),
+                            "mean_random_proj": _rounded(float(np.mean(rand_arr))),
+                            "mean_abs_random_proj": _rounded(float(np.mean(np.abs(rand_arr)))),
+                            "mean_abs_true_minus_random": _rounded(float(np.mean(np.abs(true_arr)) - np.mean(np.abs(rand_arr)))),
+                            "remove_on_stereo_score_delta": _rounded(remove_score if np.isfinite(remove_score) else None),
+                            "remove_on_stereo_margin_delta": _rounded(remove_margin if np.isfinite(remove_margin) else None),
+                            "primary_score_contrast": _rounded(primary_score if np.isfinite(primary_score) else None),
+                            "primary_margin_contrast": _rounded(primary_margin if np.isfinite(primary_margin) else None),
+                        }
+                    )
+
+            occ_pair_path = ctx.tables_dir / "asymmetry_occupancy_pair_summary.csv"
+            occ_layer_path = ctx.tables_dir / "asymmetry_occupancy_layerwise.csv"
+            write_csv(
+                occ_pair_path,
+                occ_pair_rows,
+                fieldnames=[
+                    "pair_id",
+                    "source",
+                    "axis",
+                    "base_kind",
+                    "n_layers_used",
+                    "mean_true_proj",
+                    "mean_abs_true_proj",
+                    "mean_random_proj",
+                    "mean_abs_random_proj",
+                    "mean_abs_true_minus_random",
+                    "remove_on_stereo_score_delta",
+                    "remove_on_stereo_margin_delta",
+                    "primary_score_contrast",
+                    "primary_margin_contrast",
+                ],
+            )
+            write_csv(
+                occ_layer_path,
+                occ_layer_rows,
+                fieldnames=[
+                    "pair_id",
+                    "source",
+                    "axis",
+                    "base_kind",
+                    "layer",
+                    "true_proj",
+                    "abs_true_proj",
+                    "random_proj",
+                    "abs_random_proj",
+                ],
+            )
+            ctx.register_artifact(
+                occ_pair_path,
+                artifact_type="table",
+                description="Per-pair prediction-position occupancy summaries (true direction vs random baseline).",
+            )
+            ctx.register_artifact(
+                occ_layer_path,
+                artifact_type="table",
+                description="Per-layer prediction-position occupancy values (true direction vs random baseline).",
+            )
+            occupancy_pair_rows = len(occ_pair_rows)
+            occupancy_layer_rows = len(occ_layer_rows)
+
         complete_run(
             ctx,
             metrics={
@@ -496,6 +757,9 @@ def main() -> None:
                 "contrast_rows": len(contrast_rows),
                 "heldout_pairs": len(heldout),
                 "position_only": bool(args.position_only),
+                "pair_rows": len(heldout) if args.emit_pair_level else 0,
+                "occupancy_pair_rows": occupancy_pair_rows,
+                "occupancy_layer_rows": occupancy_layer_rows,
                 "dry_run": False,
             },
         )

@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -25,6 +26,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--model", default="gpt2")
     parser.add_argument("--sesoi", type=float, default=0.10, help="Equivalence margin for Δscore.")
+    parser.add_argument("--alpha", type=float, default=0.05, help="Two-sided alpha for MDE approximation.")
+    parser.add_argument("--target-power", type=float, default=0.80, help="Target power for MDE approximation.")
     parser.add_argument("--exp15-run-dir", default="")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -72,6 +75,15 @@ def _classify(ci_low: float, ci_high: float, sesoi: float) -> str:
     return "inconclusive"
 
 
+def _approx_mde_score(n_pairs: int, alpha: float, target_power: float) -> float:
+    """Approximate minimum detectable score delta for paired-binary style tests."""
+    if n_pairs <= 0:
+        return float("nan")
+    z_alpha = float(norm.ppf(1.0 - alpha / 2.0))
+    z_beta = float(norm.ppf(target_power))
+    return 0.5 * (z_alpha + z_beta) / np.sqrt(float(n_pairs))
+
+
 def main() -> None:
     args = parse_args()
     ctx = start_run("21", parameters=vars(args), project_root=PROJECT_ROOT)
@@ -85,6 +97,8 @@ def main() -> None:
             "exp15_run_dir": str(exp15_dir),
             "summary_csv": str(summary_path),
             "sesoi": args.sesoi,
+            "alpha": args.alpha,
+            "target_power": args.target_power,
         }
         refs_path = ctx.artifacts_dir / "dependencies.json"
         write_json(refs_path, refs)
@@ -108,17 +122,29 @@ def main() -> None:
                 ci_high = _to_float(row.get("stereotype_score_delta_ci_high", ""))
                 cls = _classify(ci_low, ci_high, args.sesoi)
                 cross_source = rank_source != target_source
+                n_pairs = int(_to_float(row.get("n_pairs", 0))) if not np.isnan(_to_float(row.get("n_pairs", 0))) else 0
+                mde = _approx_mde_score(n_pairs, args.alpha, args.target_power)
+                if np.isnan(mde):
+                    power_tag = "unknown"
+                elif mde <= args.sesoi:
+                    power_tag = "adequate_for_sesoi"
+                else:
+                    power_tag = "underpowered_for_sesoi"
                 out_rows.append(
                     {
                         "condition": condition,
                         "rank_source": rank_source,
                         "target_source": target_source,
                         "cross_source": cross_source,
-                        "n_pairs": int(_to_float(row.get("n_pairs", 0))) if not np.isnan(_to_float(row.get("n_pairs", 0))) else 0,
+                        "n_pairs": n_pairs,
                         "delta_score": "" if np.isnan(delta) else round(float(delta), 8),
                         "delta_score_ci_low": "" if np.isnan(ci_low) else round(float(ci_low), 8),
                         "delta_score_ci_high": "" if np.isnan(ci_high) else round(float(ci_high), 8),
                         "sesoi": args.sesoi,
+                        "alpha": args.alpha,
+                        "target_power": args.target_power,
+                        "mde_score_approx": "" if np.isnan(mde) else round(float(mde), 8),
+                        "power_vs_sesoi": power_tag,
                         "equivalence_decision": cls,
                     }
                 )
@@ -137,6 +163,10 @@ def main() -> None:
                 "delta_score_ci_low",
                 "delta_score_ci_high",
                 "sesoi",
+                "alpha",
+                "target_power",
+                "mde_score_approx",
+                "power_vs_sesoi",
                 "equivalence_decision",
             ],
         )
@@ -154,6 +184,8 @@ def main() -> None:
             "equivalent_cross_rows": counts.get("equivalent_within_sesoi", 0),
             "inconclusive_cross_rows": counts.get("inconclusive", 0),
             "sesoi": args.sesoi,
+            "alpha": args.alpha,
+            "target_power": args.target_power,
             "dry_run": False,
         }
         complete_run(ctx, metrics=metrics)

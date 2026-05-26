@@ -7,14 +7,19 @@ venv/
 
 # Local runtime + machine-specific experiment artifacts
 results/
-scripts/
-launch_*tmux*.sh
 *.pid
 *.log
 
 # Local data/cache
 .cache/
 *.tmp
+.pytest_cache/
+.mypy_cache/
+
+# Package/build staging
+submission_archives/staging/
+submission_archives/*.zip
+submission_archives/archive_checksums.sha256
 
 # LaTeX build artifacts
 paper/build/

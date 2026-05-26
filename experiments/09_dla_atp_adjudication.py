@@ -51,6 +51,11 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Comma-separated pair sources for heldout evaluation (e.g. stereoset_intrasentence,crows_pairs).",
     )
+    parser.add_argument(
+        "--disable-truncate-shuffle",
+        action="store_true",
+        help="Disable deterministic shuffle-before-truncate and use legacy first-N truncation.",
+    )
     parser.add_argument("--exp1-run-dir", default="")
     parser.add_argument("--exp2-run-dir", default="")
     parser.add_argument("--exp3-run-dir", default="")
@@ -273,8 +278,75 @@ def main() -> None:
         heldout = [aligned_pairs[i] for i in test_indices if 0 <= i < len(aligned_pairs)]
         if eval_sources:
             heldout = [p for p in heldout if p.pair.source in eval_sources]
+        heldout_legacy = heldout[: args.heldout_pairs] if args.heldout_pairs > 0 else list(heldout)
         if args.heldout_pairs > 0:
-            heldout = heldout[: args.heldout_pairs]
+            if args.disable_truncate_shuffle:
+                heldout = heldout_legacy
+            else:
+                # Deterministic shuffle-before-truncate avoids ordering bias from source/axis sorting.
+                rng = np.random.default_rng(args.seed)
+                order = np.arange(len(heldout))
+                rng.shuffle(order)
+                heldout = [heldout[int(i)] for i in order[: args.heldout_pairs]]
+
+        selected_ids = [p.pair.pair_id for p in heldout]
+        selected_path = ctx.artifacts_dir / "selected_pair_ids.json"
+        write_json(
+            selected_path,
+            {
+                "policy": "legacy_first_n" if args.disable_truncate_shuffle else "deterministic_shuffle_before_truncate",
+                "seed": args.seed,
+                "heldout_pairs_requested": args.heldout_pairs,
+                "selected_pair_ids": selected_ids,
+            },
+        )
+        ctx.register_artifact(
+            selected_path,
+            artifact_type="artifact",
+            description="Persisted pair selection under truncation policy.",
+        )
+
+        legacy_ids = [p.pair.pair_id for p in heldout_legacy]
+        legacy_set, policy_set = set(legacy_ids), set(selected_ids)
+        overlap = len(legacy_set & policy_set)
+        union = len(legacy_set | policy_set) if (legacy_set or policy_set) else 0
+        comp_rows: list[dict[str, Any]] = [
+            {
+                "metric": "n_candidates_pretruncate",
+                "legacy_first_n": len(heldout_legacy if args.heldout_pairs > 0 else heldout),
+                "policy_selected": len(heldout),
+                "delta": len(heldout) - len(heldout_legacy if args.heldout_pairs > 0 else heldout),
+            },
+            {
+                "metric": "overlap_count",
+                "legacy_first_n": overlap,
+                "policy_selected": overlap,
+                "delta": 0,
+            },
+            {
+                "metric": "jaccard_overlap",
+                "legacy_first_n": round((overlap / union) if union > 0 else 1.0, 8),
+                "policy_selected": round((overlap / union) if union > 0 else 1.0, 8),
+                "delta": 0.0,
+            },
+            {
+                "metric": "exact_match",
+                "legacy_first_n": int(legacy_ids == selected_ids),
+                "policy_selected": int(legacy_ids == selected_ids),
+                "delta": 0,
+            },
+        ]
+        comp_path = ctx.tables_dir / "truncate_policy_delta.csv"
+        write_csv(
+            comp_path,
+            comp_rows,
+            fieldnames=["metric", "legacy_first_n", "policy_selected", "delta"],
+        )
+        ctx.register_artifact(
+            comp_path,
+            artifact_type="table",
+            description="Legacy first-N vs shuffled-truncate selection comparison.",
+        )
 
         dla_promoters = args.promoters_only and args.ranking_source in {"union", "dla"}
         atp_promoters = args.promoters_only and args.ranking_source in {"union", "atp"}

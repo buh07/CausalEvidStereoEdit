@@ -188,6 +188,41 @@ EXPERIMENTS: dict[str, ExperimentSpec] = {
         description="Run larger-sample paired capability deltas on above-chance benchmarks under direction ablation.",
         script="experiments/25_capability_monitor_replacement.py",
     ),
+    "26": ExperimentSpec(
+        id="26",
+        slug="ar_same_position_replication",
+        title="AR Same-Position Prefix-Difference Replication",
+        description="Build prefix-different AR prompts and run matched inject/remove at the same scored position.",
+        script="experiments/26_ar_same_position_replication.py",
+    ),
+    "27": ExperimentSpec(
+        id="27",
+        slug="multitoken_span_robustness",
+        title="Multi-Token Span Robustness",
+        description="Evaluate direction ablation on multi-token contrast spans with span-level scoring.",
+        script="experiments/27_multitoken_span_robustness.py",
+    ),
+    "28": ExperimentSpec(
+        id="28",
+        slug="multitoken_matched_asymmetry",
+        title="Multi-Token Matched Inject/Remove Asymmetry",
+        description="Run span-level matched inject/remove 2x2 contrasts for multi-token divergences.",
+        script="experiments/28_multitoken_matched_asymmetry.py",
+    ),
+    "29": ExperimentSpec(
+        id="29",
+        slug="prompt_calibration_baseline",
+        title="Prompt-Based Calibration Baseline",
+        description="Calibrate local-edit effects against a lightweight prompt-level mitigation baseline.",
+        script="experiments/29_prompt_calibration_baseline.py",
+    ),
+    "30": ExperimentSpec(
+        id="30",
+        slug="cross_dataset_direction_injection_transfer",
+        title="Cross-Dataset Direction-Injection Transfer Matrix",
+        description="Run a 2x2 StereoSet/CrowS transfer matrix for inject-on-anti direction edits as a positive-control transfer intervention.",
+        script="experiments/30_cross_dataset_direction_injection_transfer.py",
+    ),
 }
 
 
